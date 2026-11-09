@@ -2,6 +2,15 @@ import type { Variant } from './types';
 
 export const uid = (p = 'id') => `${p}_${Math.random().toString(36).slice(2, 9)}${Date.now().toString(36).slice(-4)}`;
 
+/** UUID v4 para filas de la base de datos. */
+export const uuid = (): string =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+      });
+
 export const clsx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(' ');
 
 export const pad = (n: number) => String(n).padStart(2, '0');

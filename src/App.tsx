@@ -12,6 +12,7 @@ import Sparks from './pages/Sparks';
 import Agenda from './pages/Agenda';
 import Archive from './pages/Archive';
 import Brand from './pages/Brand';
+import { hasSupabase } from './lib/supabase';
 
 function Protected() {
   const { user, ready } = useAuth();
@@ -26,6 +27,14 @@ function Protected() {
 }
 
 export default function App() {
+  if (!hasSupabase) {
+    return (
+      <div className="boot-msg">
+        <h2>Falta configurar Supabase</h2>
+        <p>Define VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY (ver .env.example) y reinicia.</p>
+      </div>
+    );
+  }
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />

@@ -1,44 +1,111 @@
 /**
- * Capa de datos de Lucir Estudio.
+ * Capa de datos de Lucir Estudio sobre Supabase.
  *
- * Hoy persiste en localStorage (una "cuenta" por correo, solo en este navegador).
- * Toda la app habla con esta capa a través de `useData()` y `useAuth()`, así que para
- * conectar un backend real basta con reimplementar estas funciones (ver README).
+ * - `AuthProvider` / `useAuth`: sesión con Supabase Auth (correo y contraseña).
+ * - `DataProvider` / `useData`: carga los datos del usuario al entrar y aplica los cambios
+ *   de forma optimista (la interfaz responde al instante) escribiendo en segundo plano.
+ *
+ * Las páginas no conocen Supabase: solo hablan con `useData()` y `useAuth()`.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from './supabase';
 import type { AppData, Brand, Piece, SavedHook, Spark, User } from './types';
-import { sha256, todayISO, uid } from './utils';
+import { todayISO, uuid } from './utils';
+import { useToast } from '../components/ui';
 
-const USERS_KEY = 'lucir:users';
-const SESSION_KEY = 'lucir:session';
-const dataKey = (email: string) => `lucir:data:${email.toLowerCase()}`;
+/* ───────────── mapeos fila ↔ modelo ───────────── */
 
-interface StoredUser extends User {
-  hash: string;
-}
+type Row = Record<string, unknown>;
 
-/* ───────────── helpers de almacenamiento ───────────── */
+const BRAND_COLS: Record<string, string> = {
+  name: 'name', description: 'description', niche: 'niche', audience: 'audience', monthlyGoal: 'monthly_goal',
+  problem: 'problem', helps: 'helps', outcome: 'outcome', voice: 'voice', variant: 'variant', keywords: 'keywords',
+  competitors: 'competitors', colors: 'colors', networks: 'networks', cycleEnabled: 'cycle_enabled',
+  cycleStart: 'cycle_start', cycleLength: 'cycle_length',
+};
+const PIECE_COLS: Record<string, string> = {
+  brandId: 'brand_id', title: 'title', format: 'format', tone: 'tone', platform: 'platform', status: 'status',
+  blocks: 'blocks', caption: 'caption', idea: 'idea', evidence: 'evidence', templateId: 'template_id', seed: 'seed',
+  scheduledAt: 'scheduled_at', reach: 'reach', saves: 'saves', favorite: 'favorite', notes: 'notes',
+};
+const SPARK_COLS: Record<string, string> = { brandId: 'brand_id', tone: 'tone', title: 'title', hook: 'hook', levels: 'levels', used: 'used' };
 
-function readJSON<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
+function toRow(patch: Record<string, unknown>, cols: Record<string, string>): Row {
+  const out: Row = {};
+  for (const [k, v] of Object.entries(patch)) {
+    const col = cols[k];
+    if (col) out[col] = v === undefined ? null : v;
   }
+  return out;
 }
 
-function writeJSON(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* almacenamiento lleno o bloqueado */
-  }
-}
+const brandFrom = (r: Row): Brand => ({
+  id: r.id as string,
+  name: (r.name as string) ?? '',
+  description: (r.description as string) ?? '',
+  niche: (r.niche as string) ?? '',
+  audience: (r.audience as string) ?? '',
+  monthlyGoal: (r.monthly_goal as number) ?? 20,
+  problem: (r.problem as string) ?? '',
+  helps: (r.helps as string) ?? '',
+  outcome: (r.outcome as string) ?? '',
+  voice: (r.voice as string) ?? '',
+  variant: ((r.variant as Brand['variant']) ?? 'neutro'),
+  keywords: (r.keywords as string[]) ?? [],
+  competitors: (r.competitors as string[]) ?? [],
+  colors: (r.colors as string[])?.length ? (r.colors as string[]) : ['#FF9A5A', '#1A1613'],
+  networks: (r.networks as Brand['networks']) ?? ['Instagram'],
+  cycleEnabled: Boolean(r.cycle_enabled),
+  cycleStart: (r.cycle_start as string) ?? todayISO(),
+  cycleLength: (r.cycle_length as number) ?? 28,
+});
+
+const pieceFrom = (r: Row): Piece => ({
+  id: r.id as string,
+  brandId: r.brand_id as string,
+  title: (r.title as string) ?? '',
+  format: r.format as Piece['format'],
+  tone: r.tone as Piece['tone'],
+  platform: r.platform as Piece['platform'],
+  status: r.status as Piece['status'],
+  blocks: (r.blocks as Piece['blocks']) ?? [],
+  caption: (r.caption as string) ?? '',
+  idea: (r.idea as string) ?? '',
+  evidence: (r.evidence as string) ?? '',
+  templateId: (r.template_id as string) ?? undefined,
+  seed: (r.seed as number) ?? 0,
+  createdAt: r.created_at as string,
+  scheduledAt: (r.scheduled_at as string) ?? undefined,
+  reach: (r.reach as number) ?? 0,
+  saves: (r.saves as number) ?? 0,
+  favorite: Boolean(r.favorite),
+  notes: (r.notes as string) ?? '',
+});
+
+const sparkFrom = (r: Row): Spark => ({
+  id: r.id as string,
+  brandId: r.brand_id as string,
+  tone: r.tone as Spark['tone'],
+  title: r.title as string,
+  hook: (r.hook as string) ?? '',
+  levels: (r.levels as string[]) ?? [],
+  used: Boolean(r.used),
+  createdAt: r.created_at as string,
+});
+
+const hookFrom = (r: Row): SavedHook => ({
+  id: r.id as string,
+  kind: r.kind as SavedHook['kind'],
+  groupId: r.group_id as string,
+  template: r.template as string,
+  text: r.text as string,
+  createdAt: r.created_at as string,
+});
 
 export function newBrand(name = ''): Brand {
   return {
-    id: uid('brand'),
+    id: uuid(),
     name,
     description: '',
     niche: '',
@@ -59,33 +126,22 @@ export function newBrand(name = ''): Brand {
   };
 }
 
-function emptyData(brandName: string): AppData {
-  const b = newBrand(brandName);
-  return { brands: [b], activeBrandId: b.id, pieces: [], sparks: [], hooks: { saved: [] }, theme: 'dark' };
-}
+/* ───────────── autenticación ───────────── */
 
-function normalize(d: AppData | null, brandName: string): AppData {
-  if (!d || !d.brands?.length) return emptyData(brandName);
-  return {
-    ...d,
-    activeBrandId: d.brands.some((b) => b.id === d.activeBrandId) ? d.activeBrandId : d.brands[0].id,
-    pieces: d.pieces ?? [],
-    sparks: d.sparks ?? [],
-    hooks: d.hooks ?? { saved: [] },
-    theme: d.theme === 'light' ? 'light' : 'dark',
-  };
+interface AuthResult {
+  error?: string;
+  needsConfirm?: boolean;
 }
-
-/* ───────────── autenticación (maqueta local) ───────────── */
 
 interface AuthCtx {
   user: User | null;
   ready: boolean;
-  register: (name: string, email: string, password: string, brandName: string) => Promise<string | null>;
-  login: (email: string, password: string) => Promise<string | null>;
-  recover: (email: string, newPassword: string) => Promise<string | null>;
+  recovering: boolean;
+  register: (name: string, email: string, password: string, brandName: string) => Promise<AuthResult>;
+  login: (email: string, password: string) => Promise<AuthResult>;
+  sendRecovery: (email: string) => Promise<AuthResult>;
+  setNewPassword: (password: string) => Promise<AuthResult>;
   logout: () => void;
-  accountExists: (email: string) => boolean;
 }
 
 const AuthContext = createContext<AuthCtx | null>(null);
@@ -96,65 +152,92 @@ export function useAuth() {
   return c;
 }
 
+function friendly(msg: string): string {
+  const m = msg.toLowerCase();
+  if (m.includes('invalid login')) return 'Correo o contraseña incorrectos.';
+  if (m.includes('email not confirmed')) return 'Confirma tu correo antes de entrar: te enviamos un enlace.';
+  if (m.includes('already registered') || m.includes('already been registered')) return 'Ya existe una cuenta con ese correo.';
+  if (m.includes('password') && m.includes('characters')) return 'La contraseña debe tener al menos 8 caracteres.';
+  if (m.includes('rate limit') || m.includes('too many')) return 'Demasiados intentos. Espera unos minutos y vuelve a probar.';
+  if (m.includes('valid email') || m.includes('invalid email')) return 'Escribe un correo válido.';
+  if (m.includes('failed to fetch') || m.includes('network')) return 'No pudimos conectar con el servidor. Revisa tu conexión.';
+  return msg;
+}
+
+const toUser = (s: Session | null): User | null =>
+  s?.user
+    ? {
+        id: s.user.id,
+        email: s.user.email ?? '',
+        name: (s.user.user_metadata?.name as string) || (s.user.email ?? '').split('@')[0],
+      }
+    : null;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
+  const [recovering, setRecovering] = useState(false);
 
   useEffect(() => {
-    const s = readJSON<User | null>(SESSION_KEY, null);
-    if (s?.email) setUser(s);
-    setReady(true);
+    let alive = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!alive) return;
+      setUser(toUser(data.session));
+      setReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true);
+      setUser(toUser(session));
+      setReady(true);
+    });
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
-  const value = useMemo<AuthCtx>(() => {
-    const users = () => readJSON<StoredUser[]>(USERS_KEY, []);
-    return {
+  const value = useMemo<AuthCtx>(
+    () => ({
       user,
       ready,
-      accountExists: (email) => users().some((u) => u.email === email.trim().toLowerCase()),
+      recovering,
       register: async (name, email, password, brandName) => {
         const e = email.trim().toLowerCase();
-        if (!/^\S+@\S+\.\S+$/.test(e)) return 'Escribe un correo válido.';
-        if (password.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
-        if (users().some((u) => u.email === e)) return 'Ya existe una cuenta con ese correo.';
-        const hash = await sha256(password);
-        writeJSON(USERS_KEY, [...users(), { email: e, name: name.trim() || e.split('@')[0], hash }]);
-        writeJSON(dataKey(e), emptyData(brandName.trim()));
-        const u = { email: e, name: name.trim() || e.split('@')[0] };
-        writeJSON(SESSION_KEY, u);
-        setUser(u);
-        return null;
+        if (password.length < 8) return { error: 'La contraseña debe tener al menos 8 caracteres.' };
+        const { data, error } = await supabase.auth.signUp({
+          email: e,
+          password,
+          options: {
+            data: { name: name.trim(), brand_name: brandName.trim() },
+            emailRedirectTo: `${window.location.origin}/login`,
+          },
+        });
+        if (error) return { error: friendly(error.message) };
+        // Supabase devuelve un usuario sin identidades cuando el correo ya existe.
+        if (data.user && data.user.identities && data.user.identities.length === 0) return { error: 'Ya existe una cuenta con ese correo.' };
+        return data.session ? {} : { needsConfirm: true };
       },
       login: async (email, password) => {
-        const e = email.trim().toLowerCase();
-        const found = users().find((u) => u.email === e);
-        if (!found) return 'No encontramos una cuenta con ese correo.';
-        if ((await sha256(password)) !== found.hash) return 'La contraseña no es correcta.';
-        const u = { email: found.email, name: found.name };
-        writeJSON(SESSION_KEY, u);
-        setUser(u);
-        return null;
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+        return error ? { error: friendly(error.message) } : {};
       },
-      recover: async (email, newPassword) => {
-        const e = email.trim().toLowerCase();
-        const list = users();
-        const idx = list.findIndex((u) => u.email === e);
-        if (idx < 0) return 'No encontramos una cuenta con ese correo.';
-        if (newPassword.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
-        list[idx] = { ...list[idx], hash: await sha256(newPassword) };
-        writeJSON(USERS_KEY, list);
-        return null;
+      sendRecovery: async (email) => {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${window.location.origin}/recuperar` });
+        return error ? { error: friendly(error.message) } : {};
+      },
+      setNewPassword: async (password) => {
+        if (password.length < 8) return { error: 'La contraseña debe tener al menos 8 caracteres.' };
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) return { error: friendly(error.message) };
+        setRecovering(false);
+        return {};
       },
       logout: () => {
-        try {
-          localStorage.removeItem(SESSION_KEY);
-        } catch {
-          /* noop */
-        }
-        setUser(null);
+        void supabase.auth.signOut();
       },
-    };
-  }, [user, ready]);
+    }),
+    [user, ready, recovering],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -192,67 +275,179 @@ export function useData() {
   return c;
 }
 
+async function loadAll(user: User): Promise<AppData> {
+  const [prof, brands, pieces, sparks, hooks, prog] = await Promise.all([
+    supabase.from('profiles').select('theme, active_brand_id').eq('id', user.id).maybeSingle(),
+    supabase.from('brands').select('*').order('created_at', { ascending: true }),
+    supabase.from('pieces').select('*').order('created_at', { ascending: false }),
+    supabase.from('sparks').select('*').order('created_at', { ascending: false }),
+    supabase.from('saved_hooks').select('*').order('created_at', { ascending: false }),
+    supabase.from('hook_progress').select('last_group_id').eq('user_id', user.id).maybeSingle(),
+  ]);
+  for (const r of [prof, brands, pieces, sparks, hooks, prog]) if (r.error) throw new Error(r.error.message);
+
+  let brandList = (brands.data ?? []).map(brandFrom);
+  if (brandList.length === 0) {
+    const { data: meta } = await supabase.auth.getUser();
+    const first = newBrand(((meta.user?.user_metadata?.brand_name as string) || '').trim());
+    const { error } = await supabase.from('brands').insert({ id: first.id, user_id: user.id, ...toRow(first as unknown as Record<string, unknown>, BRAND_COLS) });
+    if (error) throw new Error(error.message);
+    brandList = [first];
+  }
+  const active = brandList.find((b) => b.id === prof.data?.active_brand_id)?.id ?? brandList[0].id;
+
+  return {
+    brands: brandList,
+    activeBrandId: active,
+    pieces: (pieces.data ?? []).map(pieceFrom),
+    sparks: (sparks.data ?? []).map(sparkFrom),
+    hooks: { saved: (hooks.data ?? []).map(hookFrom), lastGroupId: prog.data?.last_group_id ?? undefined },
+    theme: prof.data?.theme === 'light' ? 'light' : 'dark',
+  };
+}
+
 export function DataProvider({ user, children }: { user: User; children: ReactNode }) {
-  const [data, setData] = useState<AppData>(() => normalize(readJSON<AppData | null>(dataKey(user.email), null), ''));
-  const loaded = useRef(user.email);
+  const toast = useToast();
+  const [data, setData] = useState<AppData | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  const uid = user.id;
+
+  // Escrituras con espera: junta los cambios rápidos (p. ej. al teclear) en una sola.
+  const pending = useRef(new Map<string, { patch: Record<string, unknown>; table: string; cols: Record<string, string>; timer: number }>());
+
+  const fail = useCallback((what: string, message?: string) => toast(`No se pudo guardar ${what}.${message ? ` ${message}` : ''}`, 'err'), [toast]);
+
+  const run = useCallback(
+    (what: string, p: PromiseLike<{ error: { message: string } | null }>) => {
+      void p.then(({ error }) => {
+        if (error) fail(what, error.message);
+      });
+    },
+    [fail],
+  );
+
+  const flushKey = useCallback(
+    (key: string) => {
+      const item = pending.current.get(key);
+      if (!item) return;
+      window.clearTimeout(item.timer);
+      pending.current.delete(key);
+      const id = key.split(':')[1];
+      run('los cambios', supabase.from(item.table).update(toRow(item.patch, item.cols)).eq('id', id));
+    },
+    [run],
+  );
+
+  const queueUpdate = useCallback(
+    (table: string, cols: Record<string, string>, id: string, patch: Record<string, unknown>) => {
+      const key = `${table}:${id}`;
+      const cur = pending.current.get(key);
+      if (cur) window.clearTimeout(cur.timer);
+      const merged = { ...(cur?.patch ?? {}), ...patch };
+      const timer = window.setTimeout(() => flushKey(key), 700);
+      pending.current.set(key, { patch: merged, table, cols, timer });
+    },
+    [flushKey],
+  );
+
+  const flushAll = useCallback(() => {
+    for (const key of Array.from(pending.current.keys())) flushKey(key);
+  }, [flushKey]);
 
   useEffect(() => {
-    if (loaded.current !== user.email) {
-      loaded.current = user.email;
-      setData(normalize(readJSON<AppData | null>(dataKey(user.email), null), ''));
-    }
-  }, [user.email]);
+    const onHide = () => flushAll();
+    window.addEventListener('pagehide', onHide);
+    document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && onHide());
+    return () => {
+      window.removeEventListener('pagehide', onHide);
+      flushAll();
+    };
+  }, [flushAll]);
 
   useEffect(() => {
-    writeJSON(dataKey(user.email), data);
-  }, [data, user.email]);
+    let alive = true;
+    setData(null);
+    setLoadError('');
+    loadAll(user)
+      .then((d) => alive && setData(d))
+      .catch((e: Error) => alive && setLoadError(e.message));
+    return () => {
+      alive = false;
+    };
+  }, [user.id, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const theme = data?.theme ?? 'dark';
   useEffect(() => {
-    document.documentElement.dataset.theme = data.theme;
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', data.theme === 'dark' ? '#13100e' : '#fbf6ee');
-  }, [data.theme]);
+    document.documentElement.dataset.theme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#13100e' : '#fbf6ee');
+  }, [theme]);
 
-  const brand = data.brands.find((b) => b.id === data.activeBrandId) ?? data.brands[0];
+  const set = useCallback((fn: (d: AppData) => AppData) => setData((d) => (d ? fn(d) : d)), []);
 
-  const set = useCallback((fn: (d: AppData) => AppData) => setData((d) => fn(d)), []);
-
-  const value = useMemo<DataCtx>(
-    () => ({
+  const value = useMemo<DataCtx | null>(() => {
+    if (!data) return null;
+    const brand = data.brands.find((b) => b.id === data.activeBrandId) ?? data.brands[0];
+    return {
       ...data,
       brand,
       brandPieces: data.pieces.filter((p) => p.brandId === brand.id),
       brandSparks: data.sparks.filter((s) => s.brandId === brand.id),
-      setActiveBrand: (id) => set((d) => ({ ...d, activeBrandId: id })),
-      addBrand: (name) =>
-        set((d) => {
-          const b = newBrand(name);
-          return { ...d, brands: [...d.brands, b], activeBrandId: b.id };
-        }),
-      saveBrand: (patch) =>
-        set((d) => ({ ...d, brands: d.brands.map((b) => (b.id === d.activeBrandId ? { ...b, ...patch } : b)) })),
+
+      setActiveBrand: (id) => {
+        set((d) => ({ ...d, activeBrandId: id }));
+        run('la marca activa', supabase.from('profiles').update({ active_brand_id: id }).eq('id', uid));
+      },
+      addBrand: (name) => {
+        const b = newBrand(name);
+        set((d) => ({ ...d, brands: [...d.brands, b], activeBrandId: b.id }));
+        run('la marca', supabase.from('brands').insert({ id: b.id, user_id: uid, ...toRow(b as unknown as Record<string, unknown>, BRAND_COLS) }));
+        run('la marca activa', supabase.from('profiles').update({ active_brand_id: b.id }).eq('id', uid));
+      },
+      saveBrand: (patch) => {
+        set((d) => ({ ...d, brands: d.brands.map((b) => (b.id === d.activeBrandId ? { ...b, ...patch } : b)) }));
+        queueUpdate('brands', BRAND_COLS, data.activeBrandId, patch as Record<string, unknown>);
+      },
       deleteBrand: (id) => {
         if (data.brands.length <= 1) return false;
-        set((d) => {
-          const brands = d.brands.filter((b) => b.id !== id);
-          return {
-            ...d,
-            brands,
-            pieces: d.pieces.filter((p) => p.brandId !== id),
-            sparks: d.sparks.filter((s) => s.brandId !== id),
-            activeBrandId: d.activeBrandId === id ? brands[0].id : d.activeBrandId,
-          };
-        });
+        const remaining = data.brands.filter((b) => b.id !== id);
+        const nextActive = data.activeBrandId === id ? remaining[0].id : data.activeBrandId;
+        set((d) => ({
+          ...d,
+          brands: remaining,
+          pieces: d.pieces.filter((p) => p.brandId !== id),
+          sparks: d.sparks.filter((s) => s.brandId !== id),
+          activeBrandId: nextActive,
+        }));
+        run('la eliminación', supabase.from('brands').delete().eq('id', id));
+        if (nextActive !== data.activeBrandId) run('la marca activa', supabase.from('profiles').update({ active_brand_id: nextActive }).eq('id', uid));
         return true;
       },
-      addPiece: (p) => set((d) => ({ ...d, pieces: [p, ...d.pieces] })),
-      updatePiece: (id, patch) => set((d) => ({ ...d, pieces: d.pieces.map((p) => (p.id === id ? { ...p, ...patch } : p)) })),
-      deletePiece: (id) => set((d) => ({ ...d, pieces: d.pieces.filter((p) => p.id !== id) })),
+
+      addPiece: (p) => {
+        set((d) => ({ ...d, pieces: [p, ...d.pieces] }));
+        run('la pieza', supabase.from('pieces').insert({ id: p.id, user_id: uid, created_at: p.createdAt, ...toRow(p as unknown as Record<string, unknown>, PIECE_COLS) }));
+      },
+      updatePiece: (id, patch) => {
+        set((d) => ({ ...d, pieces: d.pieces.map((p) => (p.id === id ? { ...p, ...patch } : p)) }));
+        queueUpdate('pieces', PIECE_COLS, id, patch as Record<string, unknown>);
+      },
+      deletePiece: (id) => {
+        const key = `pieces:${id}`;
+        const item = pending.current.get(key);
+        if (item) {
+          window.clearTimeout(item.timer);
+          pending.current.delete(key);
+        }
+        set((d) => ({ ...d, pieces: d.pieces.filter((p) => p.id !== id) }));
+        run('la eliminación', supabase.from('pieces').delete().eq('id', id));
+      },
       duplicatePiece: (id) => {
         const src = data.pieces.find((p) => p.id === id);
         if (!src) return null;
         const copy: Piece = {
           ...src,
-          id: uid('pc'),
+          id: uuid(),
           title: `${src.title} (copia)`,
           status: 'borrador',
           scheduledAt: undefined,
@@ -260,51 +455,88 @@ export function DataProvider({ user, children }: { user: User; children: ReactNo
           reach: 0,
           saves: 0,
           favorite: false,
-          blocks: src.blocks.map((b) => ({ ...b, id: uid('b') })),
+          blocks: src.blocks.map((b) => ({ ...b, id: `b_${Math.random().toString(36).slice(2, 9)}` })),
         };
         set((d) => ({ ...d, pieces: [copy, ...d.pieces] }));
+        run('la copia', supabase.from('pieces').insert({ id: copy.id, user_id: uid, created_at: copy.createdAt, ...toRow(copy as unknown as Record<string, unknown>, PIECE_COLS) }));
         return copy.id;
       },
-      addSparks: (list) =>
-        set((d) => ({
-          ...d,
-          sparks: [
-            ...list.map((s) => ({ ...s, id: uid('sp'), brandId: d.activeBrandId, used: false, createdAt: new Date().toISOString() })),
-            ...d.sparks,
-          ],
-        })),
-      updateSpark: (id, patch) => set((d) => ({ ...d, sparks: d.sparks.map((s) => (s.id === id ? { ...s, ...patch } : s)) })),
-      deleteSpark: (id) => set((d) => ({ ...d, sparks: d.sparks.filter((s) => s.id !== id) })),
-      saveHook: (h) =>
-        set((d) => {
-          const exists = d.hooks.saved.some((x) => x.kind === h.kind && x.groupId === h.groupId && x.template === h.template && x.text === h.text);
-          if (exists) return d;
-          return { ...d, hooks: { ...d.hooks, saved: [{ ...h, id: uid('hk'), createdAt: new Date().toISOString() }, ...d.hooks.saved] } };
-        }),
-      removeHook: (id) => set((d) => ({ ...d, hooks: { ...d.hooks, saved: d.hooks.saved.filter((x) => x.id !== id) } })),
-      setHookCursor: (groupId) => set((d) => (d.hooks.lastGroupId === groupId ? d : { ...d, hooks: { ...d.hooks, lastGroupId: groupId } })),
-      resetHooks: () => set((d) => ({ ...d, hooks: { saved: [] } })),
-      importHooks: (items) => {
-        let added = 0;
-        set((d) => {
-          const known = new Set(d.hooks.saved.map((x) => `${x.kind}|${x.groupId}|${x.template}|${x.text}`));
-          const fresh = items.filter((x) => x && typeof x.text === 'string' && x.kind && !known.has(`${x.kind}|${x.groupId}|${x.template}|${x.text}`));
-          added = fresh.length;
-          return { ...d, hooks: { ...d.hooks, saved: [...fresh.map((x) => ({ ...x, id: uid('hk') })), ...d.hooks.saved] } };
-        });
-        return added;
-      },
-      setTheme: (theme) => set((d) => ({ ...d, theme })),
-    }),
-    [data, brand, set],
-  );
 
+      addSparks: (list) => {
+        const now = new Date().toISOString();
+        const rows: Spark[] = list.map((s) => ({ ...s, id: uuid(), brandId: data.activeBrandId, used: false, createdAt: now }));
+        set((d) => ({ ...d, sparks: [...rows, ...d.sparks] }));
+        run('las chispas', supabase.from('sparks').insert(rows.map((s) => ({ id: s.id, user_id: uid, created_at: s.createdAt, ...toRow(s as unknown as Record<string, unknown>, SPARK_COLS) }))));
+      },
+      updateSpark: (id, patch) => {
+        set((d) => ({ ...d, sparks: d.sparks.map((s) => (s.id === id ? { ...s, ...patch } : s)) }));
+        queueUpdate('sparks', SPARK_COLS, id, patch as Record<string, unknown>);
+      },
+      deleteSpark: (id) => {
+        set((d) => ({ ...d, sparks: d.sparks.filter((s) => s.id !== id) }));
+        run('la eliminación', supabase.from('sparks').delete().eq('id', id));
+      },
+
+      saveHook: (h) => {
+        const exists = data.hooks.saved.some((x) => x.kind === h.kind && x.groupId === h.groupId && x.template === h.template && x.text === h.text);
+        if (exists) return;
+        const row: SavedHook = { ...h, id: uuid(), createdAt: new Date().toISOString() };
+        set((d) => ({ ...d, hooks: { ...d.hooks, saved: [row, ...d.hooks.saved] } }));
+        run('la apertura', supabase.from('saved_hooks').insert({ id: row.id, user_id: uid, kind: row.kind, group_id: row.groupId, template: row.template, text: row.text, created_at: row.createdAt }));
+      },
+      removeHook: (id) => {
+        set((d) => ({ ...d, hooks: { ...d.hooks, saved: d.hooks.saved.filter((x) => x.id !== id) } }));
+        run('la eliminación', supabase.from('saved_hooks').delete().eq('id', id));
+      },
+      setHookCursor: (groupId) => {
+        if (data.hooks.lastGroupId === groupId) return;
+        set((d) => ({ ...d, hooks: { ...d.hooks, lastGroupId: groupId } }));
+        run('tu progreso', supabase.from('hook_progress').upsert({ user_id: uid, last_group_id: groupId, updated_at: new Date().toISOString() }));
+      },
+      resetHooks: () => {
+        set((d) => ({ ...d, hooks: { saved: [] } }));
+        run('el reinicio', supabase.from('saved_hooks').delete().eq('user_id', uid));
+        run('el reinicio', supabase.from('hook_progress').upsert({ user_id: uid, last_group_id: null, updated_at: new Date().toISOString() }));
+      },
+      importHooks: (items) => {
+        const known = new Set(data.hooks.saved.map((x) => `${x.kind}|${x.groupId}|${x.template}|${x.text}`));
+        const fresh = items
+          .filter((x) => x && typeof x.text === 'string' && (x.kind === 'mine' || x.kind === 'fav') && !known.has(`${x.kind}|${x.groupId}|${x.template}|${x.text}`))
+          .map((x) => ({ ...x, id: uuid(), createdAt: new Date().toISOString() }));
+        if (!fresh.length) return 0;
+        set((d) => ({ ...d, hooks: { ...d.hooks, saved: [...fresh, ...d.hooks.saved] } }));
+        run(
+          'la importación',
+          supabase.from('saved_hooks').upsert(
+            fresh.map((x) => ({ id: x.id, user_id: uid, kind: x.kind, group_id: x.groupId, template: x.template, text: x.text, created_at: x.createdAt })),
+            { onConflict: 'user_id,kind,group_id,template,text', ignoreDuplicates: true },
+          ),
+        );
+        return fresh.length;
+      },
+      setTheme: (t) => {
+        set((d) => ({ ...d, theme: t }));
+        run('el tema', supabase.from('profiles').update({ theme: t }).eq('id', uid));
+      },
+    };
+  }, [data, set, run, queueUpdate, uid]);
+
+  if (loadError) {
+    return (
+      <div className="boot-msg">
+        <h2>No pudimos cargar tus datos</h2>
+        <p>{loadError}</p>
+        <button className="btn primary" onClick={() => setAttempt((n) => n + 1)}>Reintentar</button>
+      </div>
+    );
+  }
+  if (!value) return <div className="boot-msg"><div className="spinner" aria-label="Cargando" /></div>;
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
 
 export function newPiece(partial: Partial<Piece> & Pick<Piece, 'brandId' | 'title' | 'format' | 'tone' | 'platform' | 'blocks'>): Piece {
   return {
-    id: uid('pc'),
+    id: uuid(),
     caption: '',
     idea: '',
     evidence: '',

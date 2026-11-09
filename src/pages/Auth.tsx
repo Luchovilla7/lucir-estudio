@@ -62,7 +62,7 @@ export function LoginPage() {
     setBusy(true);
     const r = await login(email, pw);
     setBusy(false);
-    if (r) setErr(r);
+    if (r.error) setErr(r.error);
     else nav((loc.state as { from?: string } | null)?.from || '/', { replace: true });
   };
 
@@ -103,16 +103,27 @@ export function RegisterPage() {
   const [pw, setPw] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(false);
   if (user) return <Navigate to="/" replace />;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    setErr('');
     setBusy(true);
     const r = await register(name, email, pw, brand);
     setBusy(false);
-    if (r) setErr(r);
+    if (r.error) setErr(r.error);
+    else if (r.needsConfirm) setConfirm(true);
     else nav('/inicio', { replace: true });
   };
+
+  if (confirm) {
+    return (
+      <Shell title="Revisa tu correo" sub={`Te enviamos un enlace de confirmación a ${email}.`} foot={<Link to="/login">Ir a entrar</Link>}>
+        <p className="hint">Abre el enlace del mensaje para activar tu cuenta y luego entra con tu correo y contraseña. Si no lo ves, revisa la carpeta de spam.</p>
+      </Shell>
+    );
+  }
 
   return (
     <Shell
@@ -148,54 +159,59 @@ export function RegisterPage() {
 }
 
 export function RecoverPage() {
-  const { recover, accountExists } = useAuth();
+  const { sendRecovery, setNewPassword, recovering, user } = useAuth();
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
-  const [step, setStep] = useState<'email' | 'reset' | 'done'>('email');
+  const [step, setStep] = useState<'email' | 'sent' | 'done'>('email');
   const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const next = (e: FormEvent) => {
+  const send = async (e: FormEvent) => {
     e.preventDefault();
-    if (!accountExists(email)) return setErr('No encontramos una cuenta con ese correo.');
     setErr('');
-    setStep('reset');
+    setBusy(true);
+    const r = await sendRecovery(email);
+    setBusy(false);
+    if (r.error) setErr(r.error);
+    else setStep('sent');
   };
   const reset = async (e: FormEvent) => {
     e.preventDefault();
-    const r = await recover(email, pw);
-    if (r) setErr(r);
+    setErr('');
+    setBusy(true);
+    const r = await setNewPassword(pw);
+    setBusy(false);
+    if (r.error) setErr(r.error);
     else setStep('done');
   };
 
+  const resetting = recovering && !!user && step !== 'done';
+
   return (
     <Shell
-      title="Recupera tu acceso"
-      sub={step === 'done' ? 'Listo. Ya puedes entrar con tu nueva contraseña.' : 'Te ayudamos a volver a entrar.'}
-      foot={<Link to="/login">Volver a entrar</Link>}
+      title={resetting ? 'Elige tu nueva contraseña' : 'Recupera tu acceso'}
+      sub={step === 'done' ? 'Listo. Tu contraseña se actualizó.' : resetting ? 'Escribe una contraseña nueva para tu cuenta.' : 'Te enviaremos un enlace para crear una contraseña nueva.'}
+      foot={<Link to={user ? '/' : '/login'}>{user ? 'Ir a la app' : 'Volver a entrar'}</Link>}
     >
-      {step === 'email' && (
-        <form onSubmit={next} className="auth-fields">
-          <label className="field">
-            <span className="label">Correo de tu cuenta</span>
-            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </label>
-          {err && <p className="form-err">{err}</p>}
-          <button className="btn primary block">Continuar</button>
-          <p className="hint">Mientras no haya servidor de correo conectado, el cambio de contraseña se hace directamente en esta pantalla.</p>
-        </form>
-      )}
-      {step === 'reset' && (
+      {step === 'done' && <Link className="btn primary block" to="/">Entrar a la app</Link>}
+      {step !== 'done' && resetting && (
         <form onSubmit={reset} className="auth-fields">
           <PasswordField value={pw} onChange={setPw} label="Nueva contraseña (mínimo 8 caracteres)" auto="new-password" />
           {err && <p className="form-err">{err}</p>}
-          <button className="btn primary block">Guardar contraseña</button>
+          <button className="btn primary block" disabled={busy}>{busy ? 'Guardando…' : 'Guardar contraseña'}</button>
         </form>
       )}
-      {step === 'done' && (
-        <Link className="btn primary block" to="/login">
-          Ir a entrar
-        </Link>
+      {step === 'email' && !resetting && (
+        <form onSubmit={send} className="auth-fields">
+          <label className="field">
+            <span className="label">Correo de tu cuenta</span>
+            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
+          </label>
+          {err && <p className="form-err">{err}</p>}
+          <button className="btn primary block" disabled={busy}>{busy ? 'Enviando…' : 'Enviar enlace'}</button>
+        </form>
       )}
+      {step === 'sent' && !resetting && <p className="hint">Si existe una cuenta con {email}, recibirás un correo con el enlace en unos minutos. Revisa también el spam.</p>}
     </Shell>
   );
 }
