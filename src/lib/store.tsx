@@ -141,6 +141,8 @@ interface AuthCtx {
   login: (email: string, password: string) => Promise<AuthResult>;
   sendRecovery: (email: string) => Promise<AuthResult>;
   setNewPassword: (password: string) => Promise<AuthResult>;
+  updateName: (name: string) => Promise<AuthResult>;
+  deleteAccount: () => Promise<AuthResult>;
   logout: () => void;
 }
 
@@ -232,6 +234,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRecovering(false);
         return {};
       },
+      updateName: async (name) => {
+        const clean = name.trim();
+        if (!clean) return { error: 'El nombre no puede estar vacío.' };
+        const { error } = await supabase.auth.updateUser({ data: { name: clean } });
+        if (error) return { error: friendly(error.message) };
+        if (user) await supabase.from('profiles').update({ name: clean }).eq('id', user.id);
+        return {};
+      },
+      deleteAccount: async () => {
+        const { error } = await supabase.rpc('delete_my_account');
+        if (error) {
+          const m = error.message.toLowerCase();
+          if (m.includes('could not find') || m.includes('does not exist') || error.code === 'PGRST202') {
+            return { error: 'Falta activar la eliminación de cuentas en la base de datos (ejecutar supabase/002_delete_account.sql).' };
+          }
+          return { error: friendly(error.message) };
+        }
+        await supabase.auth.signOut();
+        return {};
+      },
       logout: () => {
         void supabase.auth.signOut();
       },
@@ -263,6 +285,7 @@ export interface DataCtx extends AppData {
   resetHooks: () => void;
   importHooks: (items: SavedHook[]) => number;
   setTheme: (t: 'dark' | 'light') => void;
+  clearContent: () => void;
   brandPieces: Piece[];
   brandSparks: Spark[];
 }
@@ -275,7 +298,19 @@ export function useData() {
   return c;
 }
 
-async function loadAll(user: User): Promise<AppData> {
+// Evita cargas simultáneas del mismo usuario (p. ej. el doble efecto de React en desarrollo),
+// que podían crear la primera marca dos veces.
+const inflight = new Map<string, Promise<AppData>>();
+
+function loadAll(user: User): Promise<AppData> {
+  const running = inflight.get(user.id);
+  if (running) return running;
+  const p = loadAllNow(user).finally(() => inflight.delete(user.id));
+  inflight.set(user.id, p);
+  return p;
+}
+
+async function loadAllNow(user: User): Promise<AppData> {
   const [prof, brands, pieces, sparks, hooks, prog] = await Promise.all([
     supabase.from('profiles').select('theme, active_brand_id').eq('id', user.id).maybeSingle(),
     supabase.from('brands').select('*').order('created_at', { ascending: true }),
@@ -513,6 +548,18 @@ export function DataProvider({ user, children }: { user: User; children: ReactNo
           ),
         );
         return fresh.length;
+      },
+      clearContent: () => {
+        for (const key of Array.from(pending.current.keys())) {
+          const item = pending.current.get(key);
+          if (item) window.clearTimeout(item.timer);
+          pending.current.delete(key);
+        }
+        set((d) => ({ ...d, pieces: [], sparks: [], hooks: { saved: [] } }));
+        run('el borrado', supabase.from('pieces').delete().eq('user_id', uid));
+        run('el borrado', supabase.from('sparks').delete().eq('user_id', uid));
+        run('el borrado', supabase.from('saved_hooks').delete().eq('user_id', uid));
+        run('el borrado', supabase.from('hook_progress').upsert({ user_id: uid, last_group_id: null, updated_at: new Date().toISOString() }));
       },
       setTheme: (t) => {
         set((d) => ({ ...d, theme: t }));

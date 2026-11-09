@@ -2,23 +2,40 @@
 
 Estudio de contenido para marcas personales y negocios de servicios: convierte una idea suelta en carruseles, stories, reels con guion, posts de texto y cartas (email), con el tono de la marca, y los ordena en una agenda y un archivo.
 
-Este repositorio contiene el **frontend completo**. Los datos viven en `localStorage` y la generación es un motor local; ver "Qué falta" más abajo.
+Frontend en React + Vite + TypeScript. Cuentas y datos en **Supabase** (Auth + Postgres con Row Level Security). La generación de contenido es, por ahora, un motor local de plantillas (`src/lib/engine.ts`).
 
-## Arrancar
+## Puesta en marcha
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # tsc + vite build
+cp .env.example .env.local   # completa VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY
+npm run dev                  # http://localhost:5173
+npm run build                # tsc + vite build
 ```
 
-Despliegue en Vercel: `vercel.json` ya redirige todas las rutas a `index.html`.
+### Base de datos (Supabase → SQL Editor)
+1. `supabase/schema.sql`: tablas, políticas RLS y disparador de perfil.
+2. `supabase/002_delete_account.sql`: permite que cada usuario elimine su propia cuenta desde `/cuenta`.
+
+Ambos son idempotentes (se pueden volver a ejecutar).
+
+### Supabase → Authentication
+- **URL Configuration:** Site URL = URL de producción; Redirect URLs = producción `/**` y `http://localhost:5173/**`.
+- **Sign In / Providers → Confirm email:** recomendado activo en producción. El registro y la recuperación ya contemplan ambos casos.
+
+### Variables de entorno
+| Variable | Dónde | Notas |
+|---|---|---|
+| `VITE_SUPABASE_URL` | Vercel + `.env.local` | pública |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Vercel + `.env.local` | pública (`sb_publishable_…`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | solo Vercel | secreta (`sb_secret_…`), para endpoints de servidor |
+| `ANTHROPIC_API_KEY` | solo Vercel | secreta, para generar con Claude |
 
 ## Secciones
 
 | Ruta | Sección | Qué hace |
 |---|---|---|
-| `/login` `/registro` `/recuperar` | Acceso | Cuentas locales (maqueta). |
+| `/login` `/registro` `/recuperar` | Acceso | Supabase Auth: correo y contraseña, confirmación y recuperación por enlace. |
 | `/` | Panorama | Listas, meta del mes, formatos, balance de tonos, próximas publicaciones, chispas, ritmo personal. |
 | `/inicio` | Guía de inicio | Checklist de 5 pasos y explicación de los tonos. |
 | `/taller` | Taller | Carrusel (3–20 slides), stories (16 plantillas, 4 placas), reel con guion, post de texto. |
@@ -29,29 +46,29 @@ Despliegue en Vercel: `vercel.json` ya redirige todas las rutas a `index.html`.
 | `/agenda` | Agenda | Calendario mensual con arrastrar y soltar y panel "Sin agendar". |
 | `/archivo` | Archivo | Filtros, orden, métricas (alcance/guardados), edición y exportación JSON/CSV/Markdown. |
 | `/marca` | Mi Marca | Identidad, onboarding del copiloto, voz, variante de español, palabras clave, colores, redes, ritmo personal. Multi-marca. |
+| `/cuenta` | Mi cuenta | Nombre, contraseña, descarga de todos los datos, borrar contenido y eliminar cuenta. |
 
 ## Arquitectura
 
 ```
 src/
   lib/
-    types.ts       modelos de datos
-    store.tsx      AuthProvider + DataProvider (hoy: localStorage)
+    supabase.ts    cliente de Supabase
+    store.tsx      AuthProvider + DataProvider (carga, escritura optimista y con espera)
     engine.ts      generación local: generatePiece, generateSparks, copilotReply
     hooksData.ts   banco de aperturas (contenido original)
     tones.ts       tonos, formatos, estados, plataformas
   components/      Layout, PieceEditor, ui
-  pages/           una por sección
+  pages/           una por sección (carga diferida con React.lazy)
+supabase/          schema.sql y migraciones
 ```
 
 Los tonos propios son **Faro, Prueba, Giro y Brújula**.
 
-## Qué falta (backend)
+## Qué falta
 
-1. **API + base de datos** (usuarios, marcas, piezas, chispas, aperturas guardadas). Reemplazar `store.tsx` manteniendo la misma interfaz `useData()` / `useAuth()`.
-2. **Autenticación real** con sesión segura, verificación de correo y recuperación por correo (hoy el hash vive en el navegador).
-3. **Generación con IA**: sustituir `generatePiece`, `generateSparks` y `copilotReply` de `engine.ts` por llamadas a un endpoint propio que invoque al modelo, con la configuración de la marca como contexto y streaming para el Copiloto.
-4. Límites de uso, planes y facturación si será un producto de suscripción.
-5. Publicación directa en redes (OAuth con Instagram, LinkedIn, etc.) y recordatorios por correo o push de la agenda.
-6. Métricas reales (importar alcance y guardados desde las plataformas en vez de cargarlos a mano).
-7. Pruebas automáticas, monitoreo de errores y analítica.
+1. **Generación con IA**: reemplazar `generatePiece`, `generateSparks` y `copilotReply` de `engine.ts` por llamadas a un endpoint de servidor (`/api`) que invoque a Claude con la configuración de la marca como contexto, valide la sesión y registre consumo en `usage_events` (la tabla ya existe).
+2. Límites de uso y planes (`profiles.plan` ya existe), y facturación si será de suscripción.
+3. Publicación directa en redes (OAuth) y recordatorios de la agenda por correo o push.
+4. Métricas reales importadas de las plataformas (hoy se cargan a mano).
+5. Pruebas automáticas, monitoreo de errores y analítica.

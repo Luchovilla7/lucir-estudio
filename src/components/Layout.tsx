@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, Link } from 'react-router-dom';
 import {
   Archive,
@@ -22,6 +22,7 @@ import {
   X,
   Check,
   Trash2,
+  UserRound,
 } from 'lucide-react';
 import { useAuth, useData } from '../lib/store';
 import { useToast } from './ui';
@@ -80,6 +81,11 @@ export default function Layout() {
   }, []);
 
   const current = NAV.find((n) => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)));
+  const pageTitle = loc.pathname.startsWith('/cuenta') ? 'Mi cuenta' : current?.label;
+
+  useEffect(() => {
+    document.title = pageTitle ? `${pageTitle} · Lucir Estudio` : 'Lucir Estudio';
+  }, [pageTitle]);
   const configured = brand.name.trim() && brand.description.trim();
 
   return (
@@ -165,6 +171,9 @@ export default function Layout() {
               <Link className="menu-item" to="/inicio" onClick={() => setHelp(false)}>
                 Guía de inicio
               </Link>
+              <Link className="menu-item" to="/cuenta" onClick={() => setHelp(false)}>
+                Mi cuenta
+              </Link>
               <a className="menu-item" href="mailto:hola@lucir.studio?subject=Soporte%20Lucir%20Estudio">
                 Escribir a soporte
               </a>
@@ -183,7 +192,9 @@ export default function Layout() {
             <CircleHelp size={16} /> Ayuda y soporte
           </button>
           <div className="user-row">
-            <span className="user-mail" title={user?.email}>{user?.email}</span>
+            <Link className="user-mail" to="/cuenta" title="Mi cuenta">
+              <UserRound size={14} /> {user?.email}
+            </Link>
             <button className="icon-btn" onClick={logout} aria-label="Cerrar sesión" title="Cerrar sesión">
               <LogOut size={16} />
             </button>
@@ -197,7 +208,7 @@ export default function Layout() {
           <button className="icon-btn only-mobile" onClick={() => setOpen(true)} aria-label="Abrir menú">
             <Menu size={19} />
           </button>
-          <span className="crumb">{current?.label ?? 'Lucir'}</span>
+          <span className="crumb">{pageTitle ?? 'Lucir'}</span>
           <div className="topbar-right">
             {!configured && (
               <Link to="/marca" className="setup-pill">
@@ -210,7 +221,9 @@ export default function Layout() {
           </div>
         </header>
         <main className="content">
-          <Outlet />
+          <Suspense fallback={<div className="boot-msg" style={{ minHeight: '40vh' }}><div className="spinner" aria-label="Cargando" /></div>}>
+            <Outlet />
+          </Suspense>
         </main>
         <footer className="foot">
           <span>Lucir Estudio · contenido con tu voz</span>
