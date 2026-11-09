@@ -2,6 +2,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, Link } from 'react-router-dom';
 import {
   Archive,
+  BarChart3,
   BookOpen,
   CalendarDays,
   ChevronsUpDown,
@@ -38,6 +39,7 @@ const NAV = [
   { to: '/chispas', label: 'Chispas', icon: Sparkles },
   { to: '/agenda', label: 'Agenda', icon: CalendarDays },
   { to: '/archivo', label: 'Archivo', icon: Archive },
+  { to: '/metricas', label: 'Métricas', icon: BarChart3 },
   { to: '/marca', label: 'Mi Marca', icon: Store },
 ];
 
@@ -226,7 +228,7 @@ export default function Layout() {
           </Suspense>
         </main>
         <footer className="foot">
-          <span>Lucir Estudio · contenido con tu voz</span>
+          <span>Lucir Estudio · contenido con tu voz · <Link to="/privacidad">Privacidad</Link></span>
         </footer>
       </div>
     </div>

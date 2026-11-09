@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Check, Plus, Save, X } from 'lucide-react';
 import { useData } from '../lib/store';
 import { PLATFORMS, VARIANTS } from '../lib/tones';
@@ -160,6 +161,7 @@ export default function Brand() {
             </button>
           ))}
         </div>
+        <p className="hint pad-x">¿Usas Instagram? <Link to="/metricas">Conéctalo</Link> para ver tus métricas dentro de Lucir.</p>
       </Section>
 
       <Section title="Ritmo personal" sub="Opcional. Muestra en el Panorama en qué fase de tu ciclo estás cada día y qué conviene hacer en tu contenido.">

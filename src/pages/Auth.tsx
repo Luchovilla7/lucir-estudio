@@ -26,6 +26,7 @@ function Shell({ title, sub, children, foot }: { title: string; sub: string; chi
           <p className="auth-sub">{sub}</p>
           {children}
           <div className="auth-foot">{foot}</div>
+          <div className="auth-legal"><Link to="/privacidad">Privacidad</Link></div>
         </div>
       </div>
     </div>

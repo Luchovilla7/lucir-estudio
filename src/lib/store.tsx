@@ -26,7 +26,7 @@ const BRAND_COLS: Record<string, string> = {
 };
 const PIECE_COLS: Record<string, string> = {
   brandId: 'brand_id', title: 'title', format: 'format', tone: 'tone', platform: 'platform', status: 'status',
-  blocks: 'blocks', caption: 'caption', idea: 'idea', evidence: 'evidence', templateId: 'template_id', seed: 'seed',
+  blocks: 'blocks', caption: 'caption', idea: 'idea', evidence: 'evidence', templateId: 'template_id', igMediaId: 'ig_media_id', seed: 'seed',
   scheduledAt: 'scheduled_at', reach: 'reach', saves: 'saves', favorite: 'favorite', notes: 'notes',
 };
 const SPARK_COLS: Record<string, string> = { brandId: 'brand_id', tone: 'tone', title: 'title', hook: 'hook', levels: 'levels', used: 'used' };
@@ -74,6 +74,7 @@ const pieceFrom = (r: Row): Piece => ({
   idea: (r.idea as string) ?? '',
   evidence: (r.evidence as string) ?? '',
   templateId: (r.template_id as string) ?? undefined,
+  igMediaId: (r.ig_media_id as string) ?? undefined,
   seed: (r.seed as number) ?? 0,
   createdAt: r.created_at as string,
   scheduledAt: (r.scheduled_at as string) ?? undefined,

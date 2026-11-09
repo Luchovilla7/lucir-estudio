@@ -24,6 +24,7 @@ export interface Piece {
   idea: string;
   evidence: string;
   templateId?: string;
+  igMediaId?: string;
   seed: number;
   createdAt: string;
   scheduledAt?: string; // YYYY-MM-DD

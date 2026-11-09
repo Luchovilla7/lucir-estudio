@@ -6,6 +6,7 @@ import type { Block, Piece, ToneId } from '../lib/types';
 import { generatePiece, STORY_TEMPLATES } from '../lib/engine';
 import { clsx, copyText, countPlaceholders, download, readableOn, uid, wordCount } from '../lib/utils';
 import { AutoTextarea, ToneDot, useToast } from './ui';
+import { IgLink } from './IgLink';
 
 export function pieceToText(p: Piece): string {
   const body = p.blocks.map((b) => `${b.label}\n${b.text}`).join('\n\n');
@@ -248,6 +249,7 @@ export function PieceEditor({
               <input className="input" type="number" min={0} value={piece.saves} onChange={(e) => onChange({ saves: Math.max(0, Number(e.target.value) || 0) })} />
             </div>
           </div>
+          {piece.platform === 'Instagram' && <IgLink piece={piece} onChange={onChange} />}
           <label className="label">Notas</label>
           <AutoTextarea className="input area" value={piece.notes} onChange={(v) => onChange({ notes: v })} min={3} placeholder="Ideas de diseño, enlaces, recordatorios…" />
         </aside>

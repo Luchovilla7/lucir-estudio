@@ -16,6 +16,8 @@ const Agenda = lazy(() => import('./pages/Agenda'));
 const Archive = lazy(() => import('./pages/Archive'));
 const Brand = lazy(() => import('./pages/Brand'));
 const Account = lazy(() => import('./pages/Account'));
+const Metrics = lazy(() => import('./pages/Metrics'));
+const Privacy = lazy(() => import('./pages/Privacy'));
 
 /** Evita la pantalla en blanco si algo falla al renderizar una sección. */
 class ErrorBoundary extends Component<{ children: ReactNode; resetKey: string }, { error: Error | null; key: string }> {
@@ -86,6 +88,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/registro" element={<RegisterPage />} />
       <Route path="/recuperar" element={<RecoverPage />} />
+      <Route path="/privacidad" element={<Suspense fallback={<Loading />}><Privacy /></Suspense>} />
       <Route element={<Protected />}>
         <Route index element={<Dashboard />} />
         <Route path="inicio" element={<Guide />} />
@@ -96,6 +99,7 @@ export default function App() {
         <Route path="chispas" element={<Sparks />} />
         <Route path="agenda" element={<Agenda />} />
         <Route path="archivo" element={<Archive />} />
+        <Route path="metricas" element={<Metrics />} />
         <Route path="marca" element={<Brand />} />
         <Route path="cuenta" element={<Account />} />
       </Route>
