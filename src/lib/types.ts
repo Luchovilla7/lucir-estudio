@@ -104,4 +104,6 @@ export interface GenRequest {
   templateId?: string;
   seed: number;
   email?: { mode: 'ia' | 'yo'; answers: string[] };
+  /** Estructura de la Biblioteca: define el orden y el propósito de cada slide del carrusel. */
+  structure?: { id: string; steps: string[] };
 }

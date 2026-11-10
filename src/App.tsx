@@ -17,6 +17,7 @@ const Archive = lazy(() => import('./pages/Archive'));
 const Brand = lazy(() => import('./pages/Brand'));
 const Account = lazy(() => import('./pages/Account'));
 const Metrics = lazy(() => import('./pages/Metrics'));
+const Library = lazy(() => import('./pages/Library'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 
 /** Evita la pantalla en blanco si algo falla al renderizar una sección. */
@@ -100,6 +101,7 @@ export default function App() {
         <Route path="agenda" element={<Agenda />} />
         <Route path="archivo" element={<Archive />} />
         <Route path="metricas" element={<Metrics />} />
+        <Route path="biblioteca" element={<Library />} />
         <Route path="marca" element={<Brand />} />
         <Route path="cuenta" element={<Account />} />
       </Route>

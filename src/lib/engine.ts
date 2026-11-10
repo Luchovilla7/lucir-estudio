@@ -364,6 +364,17 @@ export function generatePiece(req: GenRequest, brand: Brand): { title: string; b
     return { title, blocks, caption: '' };
   }
 
+  // carrusel con una estructura de la Biblioteca: cada slide sigue su paso y se rellena a mano
+  if (req.structure && req.structure.steps.length) {
+    const sBlocks: Block[] = req.structure.steps.map((step, i) => ({
+      id: uid('b'),
+      label: `Slide ${i + 1} · ${clip(step, 52)}`,
+      text: v(`[Escribe aquí: ${step}]`),
+    }));
+    const sCaption = v(`${HOOKS[req.tone][req.seed % 3](c)}\n\nDesliza y guarda este carrusel para volver a él. ${tags}`.trim());
+    return { title, blocks: sBlocks, caption: sCaption, templateId: `struct:${req.structure.id}` };
+  }
+
   // carrusel
   const n = Math.max(3, Math.min(20, req.slides || 7));
   const steps = pickSteps(req.tone, n);

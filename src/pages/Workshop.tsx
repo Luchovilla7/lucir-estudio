@@ -16,7 +16,13 @@ export default function Workshop() {
   const { brand, brandPieces, addPiece, updatePiece, deletePiece, duplicatePiece, updateSpark } = useData();
   const loc = useLocation();
   const toast = useToast();
-  const incoming = (loc.state ?? {}) as { idea?: string; tone?: ToneId; format?: Format; sparkId?: string };
+  const incoming = (loc.state ?? {}) as {
+    idea?: string;
+    tone?: ToneId;
+    format?: Format;
+    sparkId?: string;
+    structure?: { id: string; title: string; steps: string[]; strategy: string };
+  };
 
   const [format, setFormat] = useState<Format>(incoming.format && incoming.format !== 'email' ? incoming.format : 'carrusel');
   const [idea, setIdea] = useState(incoming.idea ?? '');
@@ -26,6 +32,7 @@ export default function Workshop() {
   const [templateId, setTemplateId] = useState('');
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [sparkId, setSparkId] = useState<string | undefined>(incoming.sparkId);
+  const [structure, setStructure] = useState(incoming.structure ?? null);
 
   useEffect(() => {
     if (incoming.idea) window.history.replaceState({}, '');
@@ -40,7 +47,10 @@ export default function Workshop() {
   const generate = () => {
     if (!canGen) return;
     const seed = 0;
-    const gen = generatePiece({ format, idea, evidence, tone, slides, seed, templateId: templateId || undefined }, brand);
+    const gen = generatePiece(
+      { format, idea, evidence, tone, slides, seed, templateId: templateId || undefined, structure: format === 'carrusel' && structure ? { id: structure.id, steps: structure.steps } : undefined },
+      brand,
+    );
     const piece = newPiece({
       brandId: brand.id,
       title: gen.title,
@@ -122,7 +132,16 @@ export default function Workshop() {
               : TONES[toneSel].tagline}
           </p>
 
-          {format === 'carrusel' && (
+          {format === 'carrusel' && structure && (
+            <div className="structure-pick">
+              <span className="eyebrow">Estructura elegida</span>
+              <b>{structure.title}</b>
+              <small>{structure.steps.length} slides · cada slide sigue un paso de la estructura</small>
+              <button className="btn ghost xs" onClick={() => setStructure(null)}>Quitar estructura</button>
+            </div>
+          )}
+
+          {format === 'carrusel' && !structure && (
             <>
               <span className="eyebrow mt">Cantidad de slides</span>
               <div className="chips">
@@ -134,6 +153,7 @@ export default function Workshop() {
                 <input className="input mini" type="number" min={3} max={20} value={slides} onChange={(e) => setSlides(Math.max(3, Math.min(20, Number(e.target.value) || 3)))} aria-label="Cantidad personalizada" />
               </div>
               <p className="hint">De 3 a 20. La estructura canónica usa 10 slides.</p>
+              <p className="hint">¿Prefieres una estructura probada? <Link to="/biblioteca">Elígela en la Biblioteca</Link>.</p>
             </>
           )}
 

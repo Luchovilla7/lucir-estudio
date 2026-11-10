@@ -17,6 +17,7 @@ npm run build                # tsc + vite build
 1. `supabase/schema.sql`: tablas, políticas RLS y disparador de perfil.
 2. `supabase/002_delete_account.sql`: permite que cada usuario elimine su propia cuenta desde `/cuenta`.
 3. `supabase/003_instagram.sql`: tablas de la conexión de Instagram (tokens cifrados sin acceso desde el navegador, métricas y vínculo pieza ↔ publicación).
+4. `supabase/004_structures.sql` y luego `supabase/004b_seed_structures.sql`: biblioteca de 31 estructuras de carrusel (tabla compartida de solo lectura). El seed se regenera con `node scripts/build-structures-seed.mjs` a partir de `supabase/data/carouselcode-structures.json`.
 
 Ambos son idempotentes (se pueden volver a ejecutar).
 
@@ -40,6 +41,7 @@ Ambos son idempotentes (se pueden volver a ejecutar).
 | `/` | Panorama | Listas, meta del mes, formatos, balance de tonos, próximas publicaciones, chispas, ritmo personal. |
 | `/inicio` | Guía de inicio | Checklist de 5 pasos y explicación de los tonos. |
 | `/taller` | Taller | Carrusel (3–20 slides), stories (16 plantillas, 4 placas), reel con guion, post de texto. |
+| `/biblioteca` | Biblioteca | 31 estructuras de carrusel por objetivo (Venta, Educación, Atracción, Autoridad) con estrategia, pasos por slide y prompt base. "Usar" las lleva al Taller. |
 | `/aperturas` | Laboratorio | 64 moldes originales, filtro por nicho, búsqueda, "escribir mi versión", favoritos, respaldo/importación, banco imprimible. |
 | `/copiloto` | Copiloto | Chat que propone tono, ganchos y estructura; "Guardar" y "Usar en contenido". |
 | `/cartas` | Cartas | Historia + moraleja + propuesta (4 P), 300–500 palabras, modo "La IA responde / Yo respondo". |
