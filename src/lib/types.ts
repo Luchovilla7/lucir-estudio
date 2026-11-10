@@ -106,4 +106,8 @@ export interface GenRequest {
   email?: { mode: 'ia' | 'yo'; answers: string[] };
   /** Estructura de la Biblioteca: define el orden y el propósito de cada slide del carrusel. */
   structure?: { id: string; steps: string[] };
+  /** Ángulo de contenido (estrategia): define los pasos de la pieza. */
+  angle?: string;
+  /** Estilo de video para reels. */
+  style?: string;
 }

@@ -15,6 +15,7 @@ interface Msg {
   idea?: string;
   tone?: ToneId;
   format?: Format;
+  angle?: string;
   saved?: boolean;
 }
 
@@ -52,7 +53,7 @@ export default function Copilot() {
     setThinking(true);
     setTimeout(() => {
       const r = copilotReply(t, brand, history);
-      setMsgs((m) => [...m, { id: idRef.current++, role: 'ai', text: r.text, idea: r.idea, tone: r.tone, format: r.format }]);
+      setMsgs((m) => [...m, { id: idRef.current++, role: 'ai', text: r.text, idea: r.idea, tone: r.tone, format: r.format, angle: r.angle }]);
       setThinking(false);
     }, 650);
   };
@@ -60,7 +61,7 @@ export default function Copilot() {
   const save = (m: Msg) => {
     if (!m.idea || !m.tone) return;
     const hook = hookVariants(m.tone, m.idea, brand, 0)[0];
-    addSparks([{ tone: m.tone, title: m.idea.length > 90 ? `${m.idea.slice(0, 89)}…` : m.idea, hook, levels: [AWARENESS[1], AWARENESS[2]] }]);
+    addSparks([{ tone: m.tone, title: m.idea.length > 90 ? `${m.idea.slice(0, 89)}…` : m.idea, hook, levels: [AWARENESS[1], AWARENESS[2], ...(m.angle ? [`angle:${m.angle}`] : [])] }]);
     setMsgs((list) => list.map((x) => (x.id === m.id ? { ...x, saved: true } : x)));
     toast('Guardada en Chispas');
   };
@@ -89,7 +90,7 @@ export default function Copilot() {
               {m.role === 'ai' && m.idea && (
                 <div className="bubble-actions">
                   <button className="btn ghost xs" disabled={m.saved} onClick={() => save(m)}><Bookmark size={12} /> {m.saved ? 'Guardada' : 'Guardar'}</button>
-                  <button className="btn ghost xs" onClick={() => nav('/taller', { state: { idea: m.idea, tone: m.tone, format: m.format } })}><Wand2 size={12} /> Usar en contenido</button>
+                  <button className="btn ghost xs" onClick={() => nav('/taller', { state: { idea: m.idea, tone: m.tone, format: m.format, angle: m.angle } })}><Wand2 size={12} /> Usar en contenido</button>
                 </div>
               )}
             </div>

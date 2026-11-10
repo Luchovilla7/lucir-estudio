@@ -8,6 +8,8 @@ import type { Format, ToneId } from '../lib/types';
 import { clsx } from '../lib/utils';
 import { PageHeader, useToast } from '../components/ui';
 import { PieceEditor } from '../components/PieceEditor';
+import { ANGLE_BY_ID, OBJECTIVES, OBJECTIVE_LIST, anglesByObjective, type Objective } from '../lib/angles';
+import { VIDEO_STYLES, VIDEO_STYLE_BY_ID } from '../lib/videoStyles';
 
 const ICONS: Record<Format, typeof LayoutGrid> = { carrusel: LayoutGrid, stories: Camera, reel: Film, post: FileText, email: Mail };
 const PRESETS = [4, 6, 7, 10];
@@ -22,6 +24,7 @@ export default function Workshop() {
     format?: Format;
     sparkId?: string;
     structure?: { id: string; title: string; steps: string[]; strategy: string };
+    angle?: string;
   };
 
   const [format, setFormat] = useState<Format>(incoming.format && incoming.format !== 'email' ? incoming.format : 'carrusel');
@@ -33,13 +36,25 @@ export default function Workshop() {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [sparkId, setSparkId] = useState<string | undefined>(incoming.sparkId);
   const [structure, setStructure] = useState(incoming.structure ?? null);
+  const [angleId, setAngleId] = useState(incoming.angle ?? '');
+  const [objective, setObjective] = useState<Objective>(ANGLE_BY_ID[incoming.angle ?? '']?.objective ?? 'atraer');
+  const [styleId, setStyleId] = useState('');
 
   useEffect(() => {
     if (incoming.idea) window.history.replaceState({}, '');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const suggested = useMemo(() => (idea.trim().length >= 6 ? suggestTone(idea) : null), [idea]);
-  const tone: ToneId = toneSel === 'auto' ? suggested ?? 'faro' : toneSel;
+  const angle = ANGLE_BY_ID[angleId];
+  const activeAngle = format === 'carrusel' && structure ? undefined : angle;
+  const tone: ToneId = toneSel === 'auto' ? activeAngle?.tone ?? suggested ?? 'faro' : toneSel;
+  const videoStyle = VIDEO_STYLE_BY_ID[styleId];
+  const fillAsk = (t: string) =>
+    t
+      .replace(/\{kw\}/g, brand.keywords[0] || brand.niche || 'tu tema')
+      .replace(/\{aud\}/g, brand.audience || 'tu cliente ideal')
+      .replace(/\{niche\}/g, brand.niche || 'tu sector')
+      .replace(/\{outcome\}/g, brand.outcome || 'su resultado');
   const current = brandPieces.find((p) => p.id === currentId) ?? null;
   const canGen = idea.trim().length >= 8;
   const configured = brand.name.trim().length > 0;
@@ -48,7 +63,7 @@ export default function Workshop() {
     if (!canGen) return;
     const seed = 0;
     const gen = generatePiece(
-      { format, idea, evidence, tone, slides, seed, templateId: templateId || undefined, structure: format === 'carrusel' && structure ? { id: structure.id, steps: structure.steps } : undefined },
+      { format, idea, evidence, tone, slides, seed, templateId: templateId || undefined, structure: format === 'carrusel' && structure ? { id: structure.id, steps: structure.steps } : undefined, angle: activeAngle?.id, style: format === 'reel' ? styleId || undefined : undefined },
       brand,
     );
     const piece = newPiece({
@@ -132,6 +147,52 @@ export default function Workshop() {
               : TONES[toneSel].tagline}
           </p>
 
+          {!(format === 'carrusel' && structure) && (
+            <>
+              <span className="eyebrow mt">Ángulo (estrategia)</span>
+              <div className="seg">
+                {OBJECTIVE_LIST.map((o) => (
+                  <button key={o.id} className={clsx(objective === o.id && 'on')} onClick={() => setObjective(o.id)}>
+                    {o.name}
+                  </button>
+                ))}
+              </div>
+              <div className="chips angle-chips">
+                <button className={clsx('chip', !angleId && 'on')} onClick={() => setAngleId('')}>Automático</button>
+                {anglesByObjective(objective).map((a) => (
+                  <button
+                    key={a.id}
+                    className={clsx('chip', angleId === a.id && 'on')}
+                    style={{ ['--tc' as string]: TONES[a.tone].color }}
+                    onClick={() => setAngleId(a.id)}
+                    title={a.summary}
+                  >
+                    <i /> {a.name}
+                  </button>
+                ))}
+              </div>
+              <p className="hint">
+                {angle
+                  ? `${angle.summary} Pasos: ${angle.beats.map((b) => b.label).join(' → ')}.`
+                  : `${OBJECTIVES[objective].desc} ${OBJECTIVES[objective].tip}`}
+              </p>
+              {angle && <p className="hint ask-hint">💡 Para encontrar tu idea: {fillAsk(angle.ask)}</p>}
+            </>
+          )}
+
+          {format === 'reel' && (
+            <>
+              <span className="eyebrow mt">Estilo de video</span>
+              <select className="input" value={styleId} onChange={(e) => setStyleId(e.target.value)}>
+                <option value="">Sin definir</option>
+                {VIDEO_STYLES.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <p className="hint">{videoStyle ? `${videoStyle.how} Cada escena indicará qué se ve.` : 'Elige cómo vas a grabarlo y el guion indicará qué se ve en cada escena.'}</p>
+            </>
+          )}
+
           {format === 'carrusel' && structure && (
             <div className="structure-pick">
               <span className="eyebrow">Estructura elegida</span>
@@ -141,7 +202,11 @@ export default function Workshop() {
             </div>
           )}
 
-          {format === 'carrusel' && !structure && (
+          {format === 'carrusel' && !structure && activeAngle && (
+            <p className="hint">La cantidad de slides la define el ángulo: {activeAngle.beats.length} pasos.</p>
+          )}
+
+          {format === 'carrusel' && !structure && !activeAngle && (
             <>
               <span className="eyebrow mt">Cantidad de slides</span>
               <div className="chips">
@@ -157,7 +222,7 @@ export default function Workshop() {
             </>
           )}
 
-          {format === 'stories' && (
+          {format === 'stories' && !activeAngle && (
             <>
               <span className="eyebrow mt">Plantilla</span>
               <select className="input" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>

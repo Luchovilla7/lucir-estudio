@@ -42,7 +42,7 @@ Ambos son idempotentes (se pueden volver a ejecutar).
 | `/inicio` | Guía de inicio | Checklist de 5 pasos y explicación de los tonos. |
 | `/taller` | Taller | Carrusel (3–20 slides), stories (16 plantillas, 4 placas), reel con guion, post de texto. |
 | `/biblioteca` | Biblioteca | 31 estructuras de carrusel por objetivo (Venta, Educación, Atracción, Autoridad) con estrategia, pasos por slide y prompt base. "Usar" las lleva al Taller. |
-| `/aperturas` | Laboratorio | 64 moldes originales, filtro por nicho, búsqueda, "escribir mi versión", favoritos, respaldo/importación, banco imprimible. |
+| `/aperturas` | Laboratorio | 112 moldes originales, filtro por nicho, búsqueda, "escribir mi versión", favoritos, respaldo/importación, banco imprimible. |
 | `/copiloto` | Copiloto | Chat que propone tono, ganchos y estructura; "Guardar" y "Usar en contenido". |
 | `/cartas` | Cartas | Historia + moraleja + propuesta (4 P), 300–500 palabras, modo "La IA responde / Yo respondo". |
 | `/chispas` | Chispas | Generador de ideas con tono, apertura y niveles de consciencia; banco pendientes/usadas. |
@@ -67,6 +67,14 @@ Pasos en Meta for Developers (resumen):
 3. Desautorización: `https://TU-DOMINIO/api/instagram/deauthorize`. Eliminación de datos: `https://TU-DOMINIO/api/instagram/data-deletion`. Política de privacidad: `https://TU-DOMINIO/privacidad`.
 4. En desarrollo, añadir las cuentas de prueba como **Evaluadores de Instagram**. Para clientes reales hay que pasar **App Review** (permisos de lectura de métricas) y verificación de empresa.
 5. Cargar en Vercel las variables de `.env.example` (META_APP_ID, META_APP_SECRET, TOKEN_ENC_KEY, CRON_SECRET, SITE_URL y SUPABASE_SERVICE_ROLE_KEY).
+
+## Estrategia de contenido (sin IA)
+
+Idea = el tema · **Ángulo** = cómo lo abordas · **Formato** = cómo se ve.
+
+- `src/lib/angles.ts`: 24 ángulos agrupados por objetivo (**Atraer**, **Conectar**, **Convertir**). Cada uno define sus pasos, una pregunta para encontrar la idea, títulos para chispas y palabras clave para sugerirlo. La referencia de ángulo y estilo se guarda en `pieces.template_id` (`angle:xxx|style:yyy`), sin tocar la base de datos; en `sparks.levels` se guarda como `angle:xxx`.
+- `src/lib/videoStyles.ts`: 26 estilos de video para reels (talking head, POV, pizarra, skit, b-roll…). Cada escena del guion indica qué se ve.
+- Taller: elige ángulo (y estilo en reels) y la pieza sigue sus pasos. Chispas: ideas por ángulo, mapa de cliente ideal que se convierte en chispas, fuentes de ideas reales y recursos para regalar. Laboratorio: 112 aperturas y guía de ganchos. Copiloto: sugiere ángulo. Panorama: balance por objetivo.
 
 ## Arquitectura
 

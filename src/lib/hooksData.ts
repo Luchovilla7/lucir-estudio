@@ -232,6 +232,164 @@ export const HOOK_GROUPS: HookGroup[] = [
       h('Si también crees que [creencia compartida], este contenido es para ti. Y si no, igual da para pensar.', 'terapia'),
     ],
   },
+
+  /* ───────── ganchos por ángulo (ampliación) ───────── */
+  {
+    id: 'faro-dolor',
+    tone: 'faro',
+    title: 'Dolor directo',
+    intent: 'Pone el dedo en una frustración real, sin rodeos y con respeto.',
+    tip: 'Funciona cuando nombras lo que tu público ya se dice a sí mismo. Confronta la excusa, no a la persona: la idea es que se reconozca, no que se sienta atacada.',
+    hooks: [
+      h('Sigues esperando el momento ideal para [acción], y mientras tanto pierdes [lo que cuesta esperar].', 'universal'),
+      h('Si cada semana te dices "no tengo tiempo para [acción]", el tiempo no es el problema.', 'coaches'),
+      h('Llevas [tiempo] postergando [decisión]. ¿Cuánto te cuesta cada mes seguir igual?', 'negocios'),
+      h('Eso que llamas cansancio quizá sea [causa real] con otro nombre.', 'terapia'),
+    ],
+  },
+  {
+    id: 'faro-errores',
+    tone: 'faro',
+    title: 'Deja de hacer esto',
+    intent: 'Presenta una práctica habitual de tu público como un error y despierta curiosidad por la alternativa.',
+    tip: 'Elige una práctica muy concreta y muy común. Mientras más reconocible sea, más gente se detiene a mirar si también la comete.',
+    hooks: [
+      h('Si sigues [práctica común], seguirás pagando [consecuencia].', 'universal'),
+      h('El error que más veo en [nicho] es [práctica], y casi nadie lo cuestiona.', 'negocios'),
+      h('Haces [práctica] con toda tu buena intención. Es justo lo que frena [resultado].', 'coaches'),
+      h('Lo que haces con tanto esmero para [objetivo] es lo que lo mantiene lejos.', 'terapia'),
+    ],
+  },
+  {
+    id: 'faro-epifania',
+    tone: 'faro',
+    title: 'Te leo la mente',
+    intent: 'Describe con precisión una situación de tu público y promete explicar su causa real.',
+    tip: 'La precisión es todo: una escena concreta ("cuando abres tu agenda el lunes y…") conecta más que una emoción general. Después de leer la mente, entrega una perspectiva nueva.',
+    hooks: [
+      h('Apuesto a que te pasa esto: [situación específica]. Y crees que es por [causa obvia].', 'universal'),
+      h('Cada vez que [situación], piensas "[pensamiento]". Esto es lo que ocurre de verdad.', 'coaches'),
+      h('Ese [síntoma] no viene de [causa obvia]. Viene de [causa real].', 'terapia'),
+      h('Tienes la sensación de [frustración] aunque haces todo bien. Te explico por qué.', 'negocios'),
+    ],
+  },
+  {
+    id: 'faro-valor',
+    tone: 'faro',
+    title: 'Valor práctico',
+    intent: 'Promete una mejora concreta en poco tiempo y con un método claro.',
+    tip: 'Une un resultado, un plazo y un método en la misma frase. Evita las promesas vagas: "mejora tu negocio" no dice nada; "ordena tu semana en 30 minutos" sí.',
+    hooks: [
+      h('Puedes [resultado] en [tiempo] con [estrategia], y no necesitas [lo que todos creen necesario].', 'universal'),
+      h('¿Y si en 10 minutos entendieras [conocimiento] mejor que en meses de intentarlo?', 'universal'),
+      h('Esto hacen las marcas que [logro] y casi nadie copia: [tema].', 'negocios'),
+      h('[Estrategia] parece demasiado simple, por eso se subestima. Es la base de [resultado].', 'coaches'),
+    ],
+  },
+  {
+    id: 'prueba-logro',
+    tone: 'prueba',
+    title: 'Logro con punto de partida',
+    intent: 'Muestra un resultado actual junto al lugar humilde de donde saliste.',
+    tip: 'Un logro sin su punto de partida suena a presunción; con él, suena a posibilidad. Di el resultado sin disculparte y el origen sin dramatizar.',
+    hooks: [
+      h('Hace [tiempo] no sabía cómo [acción]. Hoy [resultado actual].', 'universal'),
+      h('Pasé de [situación anterior] a [resultado] en [tiempo]. Esto cambió entre una y otra.', 'negocios'),
+      h('No empecé con [ventaja que no tenía]. Empecé con [punto de partida humilde].', 'coaches'),
+      h('No fue suerte. Fue [factor] sostenido durante [tiempo]. Te muestro cómo.', 'universal'),
+    ],
+  },
+  {
+    id: 'prueba-contraste',
+    tone: 'prueba',
+    title: 'Antes y después en un vistazo',
+    intent: 'Abre con un contraste que se entiende en un segundo y promete mostrar lo que hubo en medio.',
+    tip: 'Piensa primero en la imagen: si el antes y el después se pueden ver, el gancho funciona solo. Cuida que el cambio sea específico y verificable.',
+    hooks: [
+      h('De [situación actual] a [situación deseada]: lo que hice entre una y otra.', 'universal'),
+      h('Antes: [escena del problema]. Hoy: [escena del resultado]. Entre ambas hubo [n] decisiones.', 'negocios'),
+      h('Mírala hace [tiempo] y mírala hoy. Lo que cambió no fue [lo que se supone].', 'coaches'),
+      h('Estaba atravesando [momento difícil] y hoy [escena nueva]. Te cuento qué hice, sin atajos.', 'terapia'),
+    ],
+  },
+  {
+    id: 'prueba-caso',
+    tone: 'prueba',
+    title: 'El caso de una clienta',
+    intent: 'Abre con el resultado de otra persona y promete contar cómo lo logró.',
+    tip: 'Pide permiso antes de usar un nombre o una captura. Un resultado real y moderado convence más que uno espectacular que nadie puede verificar.',
+    hooks: [
+      h('[Nombre] llegó con [problema]. Hoy [resultado concreto].', 'universal'),
+      h('[Resultado] en [tiempo], a pesar de [obstáculo]. Así lo logró [nombre].', 'negocios'),
+      h('[Nombre] casi no se anima por [miedo]. Estas son las tres cosas que hicimos.', 'coaches'),
+      h('Lo que [nombre] me dijo después de [tiempo] me hizo repensar cómo trabajo.', 'terapia'),
+    ],
+  },
+  {
+    id: 'giro-polemica',
+    tone: 'giro',
+    title: 'Lo que nadie se anima a decir',
+    intent: 'Abre con una afirmación incómoda que activa reacción y posiciona tu criterio.',
+    tip: 'Opina sobre ideas, no sobre personas. Una polémica útil se apoya en experiencia o datos propios; si no los tienes, mejor elige otro gancho.',
+    hooks: [
+      h('No, no es [creencia común]. Es [verdad incómoda].', 'universal'),
+      h('[Referente o tendencia] dice [consejo]. Mi experiencia dice otra cosa.', 'negocios'),
+      h('Si tu plan es [esperar o evitar], olvídate de [objetivo].', 'coaches'),
+      h('¿Quieres [agradar a todos] o quieres [objetivo]? Rara vez van juntas.', 'terapia'),
+    ],
+  },
+  {
+    id: 'giro-comparacion',
+    tone: 'giro',
+    title: 'Dos caminos',
+    intent: 'Contrasta la forma habitual de hacer algo con la que realmente funciona.',
+    tip: 'Nombra los dos caminos en la misma frase y deja el cómo para después. El contraste claro hace que quien ve se ubique solo en uno de los dos.',
+    hooks: [
+      h('Hay dos formas de [objetivo]: la que todos usan y la que funciona. Esta es la segunda.', 'universal'),
+      h('Quien hace [A] sigue donde está. Quien hace [B] ya está en [resultado].', 'negocios'),
+      h('[Modelo erróneo] vs. [modelo correcto]: la diferencia no es el esfuerzo, es [factor].', 'coaches'),
+      h('Lo que separa a quien logra [resultado] de quien no es [una decisión concreta].', 'terapia'),
+    ],
+  },
+  {
+    id: 'giro-oportunidad',
+    tone: 'giro',
+    title: 'Algo está cambiando',
+    intent: 'Señala un cambio del mercado y una ventaja para quien actúe pronto.',
+    tip: 'Apóyate en un dato verificable o en algo que puedas mostrar. Evita la urgencia inventada: el cambio real ya es motivo suficiente para prestar atención.',
+    hooks: [
+      h('En [sector] está pasando algo que casi nadie aprovecha: [cambio].', 'negocios'),
+      h('Si [tendencia] sigue así, en [tiempo] quien no [acción] se queda fuera.', 'universal'),
+      h('Esto cambió en [plataforma o mercado] y abre una puerta para [tu público].', 'coaches'),
+      h('Antes [situación vieja]. Ahora [situación nueva]. Te cuento cómo sacarle partido.', 'universal'),
+    ],
+  },
+  {
+    id: 'brujula-vulnerabilidad',
+    tone: 'brujula',
+    title: 'Una confesión',
+    intent: 'Abre con una frase íntima que suena a confesión y invita a quedarse a escuchar.',
+    tip: 'La vulnerabilidad funciona cuando ya la elaboraste: cuenta desde el presente, con perspectiva, no desde la herida abierta. Mide qué compartes y por qué.',
+    hooks: [
+      h('Antes de [imagen actual] hubo una etapa en la que [situación vulnerable].', 'universal'),
+      h('Hubo un momento en que estuve a punto de [decisión drástica]. Hoy lo veo distinto.', 'coaches'),
+      h('Mi primer intento de [acción] salió mal. Aprendí [lección] y hoy es [lo que es ahora].', 'negocios'),
+      h('Te cuento algo que no suelo contar: [confesión breve].', 'terapia'),
+    ],
+  },
+  {
+    id: 'brujula-activacion',
+    tone: 'brujula',
+    title: 'Un empujón honesto',
+    intent: 'Invita a decidir hoy con firmeza y sin presión artificial.',
+    tip: 'El empujón funciona cuando la fecha o el cupo son reales. Si no lo son, apóyate en el costo de seguir igual en lugar de inventar escasez.',
+    hooks: [
+      h('[Resultado deseado] tiene un precio: [esfuerzo o inversión]. La pregunta es si estás lista para pagarlo.', 'universal'),
+      h('Hoy puedes seguir como hasta ahora o dar el salto. ¿Qué eliges?', 'coaches'),
+      h('El momento perfecto para [acción] no existe. Existe el siguiente paso: [paso].', 'universal'),
+      h('Quedan [n] [cupos o días]. Si esto es para ti, hoy es buen momento para decidirlo.', 'negocios'),
+    ],
+  },
 ];
 
 export const ALL_HOOKS = HOOK_GROUPS.flatMap((g) => g.hooks.map((hk, i) => ({ group: g, idx: i, hook: hk })));
@@ -244,3 +402,25 @@ export function extractPlaceholders(text: string): string[] {
   while ((m = re.exec(text))) out.push(m[1]);
   return out;
 }
+
+/** Guía para escribir ganchos: se muestra en el Laboratorio. */
+export const HOOK_GUIDE = {
+  what: 'El gancho son los primeros 2 a 10 segundos (o la primera línea). Su trabajo es dar una razón para quedarse: promete algo, abre una pregunta o rompe un patrón.',
+  types: [
+    { name: 'Vocal', desc: 'Lo que dices.' },
+    { name: 'Visual', desc: 'Lo que se ve: un gesto, un objeto o un movimiento inesperado.' },
+    { name: 'Auditivo', desc: 'Lo que se escucha: un sonido o una frase que corta el ruido.' },
+    { name: 'Texto', desc: 'Lo que se lee en pantalla o en el primer slide.' },
+    { name: 'Descripción', desc: 'La primera línea del texto que acompaña la publicación.' },
+  ],
+  rules: [
+    'Corto: idealmente menos de 12 a 15 palabras. Las primeras 3 a 5 son las que más pesan.',
+    'Claro: di qué ganan al seguir mirando, o de qué trata si es una historia.',
+    'Con contexto: quien llega sin conocerte tiene que entender de qué hablas y por qué escucharte.',
+    'Con curiosidad: abre una pregunta que solo se cierra viendo hasta el final.',
+    'Sin revelar la recompensa: la respuesta va al final, no en el gancho.',
+    'Rompe un patrón: un gesto, un objeto o una frase fuera de lo esperado detienen el scroll.',
+  ],
+  payoff: 'Retrasa la recompensa lo más que puedas con una historia, una metáfora o un ejemplo, y entrégala al final. Si das la respuesta a la mitad, quien miraba se va y el video pierde retención. Cuando la entregues, termina pronto.',
+  ladder: 'Habla a quien está un escalón por encima de tu público: las personas del escalón de abajo te seguirán de forma natural, y las de arriba no te sentirán básica.',
+};

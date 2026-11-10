@@ -9,6 +9,8 @@
 import { AWARENESS, TONES } from './tones';
 import type { Block, Brand, GenRequest, ToneId } from './types';
 import { hashStr, localize, uid } from './utils';
+import { ANGLE_BY_ID, buildRef, OBJECTIVES, SPARK_ANGLE_PREFIX, suggestAngle, type Angle } from './angles';
+import { VIDEO_STYLE_BY_ID, type VideoStyle } from './videoStyles';
 
 /* ───────────── utilidades de texto ───────────── */
 
@@ -300,7 +302,7 @@ function buildEmail(req: GenRequest, c: Ctx): { title: string; blocks: Block[] }
 
 /* ───────────── reel ───────────── */
 
-function buildReel(req: GenRequest, c: Ctx): Block[] {
+function buildReel(req: GenRequest, c: Ctx, style?: VideoStyle): Block[] {
   const turn: Record<ToneId, string> = {
     faro: `La causa real es [causa]. Y se nota en [señal].`,
     prueba: `Lo que cambió fue [decisión], y el resultado fue [dato real].`,
@@ -315,6 +317,11 @@ function buildReel(req: GenRequest, c: Ctx): Block[] {
     { label: 'Giro · 20–35 s', say: turn[req.tone], show: req.evidence ? `Muestra el testimonio en pantalla: «${clip(req.evidence, 90)}»` : 'Muestra una captura o dato real en pantalla (con permiso).' },
     { label: 'Cierre y CTA · 35–45 s', say: `Si quieres ${c.outcome}, guarda este video y escríbeme «${c.cta}».`, show: 'Mirada a cámara, sonrisa breve, texto del CTA en pantalla.' },
   ];
+  if (style) {
+    scenes.forEach((sc, i) => {
+      sc.show = i === 3 && req.evidence ? `${style.show} Muestra en pantalla: «${clip(req.evidence, 90)}»` : style.show;
+    });
+  }
   const blocks: Block[] = scenes.map((s) => ({ id: uid('b'), label: s.label, text: `Dices: ${s.say}\nSe ve: ${s.show}` }));
   blocks.push({
     id: uid('b'),
@@ -322,6 +329,38 @@ function buildReel(req: GenRequest, c: Ctx): Block[] {
     text: 'Duración objetivo: 35 a 45 segundos. Graba con luz frontal, habla un 10 % más rápido que en conversación y deja un silencio breve tras el gancho. Elige audio original o una pista instrumental suave.',
   });
   return blocks;
+}
+
+/* ───────────── ángulos y estilos ───────────── */
+
+/** Quita los corchetes internos para que la guía completa se muestre como un solo campo por completar. */
+const plain = (s: string) => s.replace(/[\[\]]/g, '');
+
+function fillGuide(text: string, c: Ctx): string {
+  return text
+    .replace(/\{core\}/g, c.core)
+    .replace(/\{aud\}/g, c.aud)
+    .replace(/\{outcome\}/g, c.outcome)
+    .replace(/\{kw\}/g, c.kw)
+    .replace(/\{niche\}/g, c.niche)
+    .replace(/\{brand\}/g, c.brandName)
+    .replace(/\{cta\}/g, c.cta);
+}
+
+/** Pasos del ángulo listos para usar: el primero lleva un gancho redactado y el resto, la guía entre corchetes. */
+function angleBeats(ang: Angle, c: Ctx, hook: string): { label: string; text: string }[] {
+  return ang.beats.map((b, i) => ({
+    label: b.label,
+    text: i === 0 ? `${hook}\n[${plain(fillGuide(b.guide, c))}]` : `[${plain(fillGuide(b.guide, c))}]`,
+  }));
+}
+
+/** Comprime los pasos de un ángulo a 4 placas para stories. */
+function pickFour<T>(arr: T[]): T[] {
+  const n = arr.length;
+  if (n <= 4) return arr.slice(0, 4);
+  const idx = Array.from(new Set([0, 1, Math.floor(n / 2), n - 1]));
+  return idx.map((i) => arr[i]);
 }
 
 /* ───────────── punto de entrada ───────────── */
@@ -336,9 +375,20 @@ export function generatePiece(req: GenRequest, brand: Brand): { title: string; b
     .filter((t) => t.length > 1)
     .join(' ');
 
+  const ang = !req.structure && req.format !== 'email' ? ANGLE_BY_ID[req.angle ?? ''] : undefined;
+  const style = req.format === 'reel' ? VIDEO_STYLE_BY_ID[req.style ?? ''] : undefined;
+  const ref = buildRef({ angle: ang?.id, style: style?.id });
+  const hookLine = v(HOOKS[req.tone][req.seed % 3](c));
+
   if (req.format === 'email') {
     const e = buildEmail(req, c);
     return { title: clip(e.title, 90), blocks: e.blocks.map((b) => ({ ...b, text: v(b.text) })), caption: '' };
+  }
+
+  if (req.format === 'stories' && ang) {
+    const four = pickFour(angleBeats(ang, c, hookLine));
+    const sBlocks = four.map((b, i) => ({ id: uid('b'), label: `${PLATE_LABELS[i]} · ${b.label}`, text: v(b.text) }));
+    return { title: `Stories · ${clip(cap(stripEnd(req.idea)), 60)}`, blocks: sBlocks, caption: '', templateId: ref };
   }
 
   if (req.format === 'stories') {
@@ -349,19 +399,63 @@ export function generatePiece(req: GenRequest, brand: Brand): { title: string; b
   }
 
   if (req.format === 'reel') {
-    const blocks = buildReel(req, c).map((b) => ({ ...b, text: v(b.text) }));
-    return { title, blocks, caption: v(`${HOOKS[req.tone][req.seed % 3](c)}\n\nGuarda este reel para tenerlo a mano. ${tags}`.trim()) };
+    let reelBlocks: Block[];
+    if (ang) {
+      const beats = angleBeats(ang, c, hookLine);
+      const total = Math.min(60, Math.max(30, beats.length * 6));
+      const seg = (total - 3) / Math.max(1, beats.length - 1);
+      reelBlocks = beats.map((b, i) => {
+        const start = i === 0 ? 0 : Math.round(3 + (i - 1) * seg);
+        const end = i === 0 ? 3 : Math.round(3 + i * seg);
+        const show = style ? style.show : i === 0 ? 'Plano medio, mirada al lente, sin introducción. Escribe la frase en pantalla.' : 'Corte rápido, subtítulos grandes y una imagen de apoyo.';
+        return { id: uid('b'), label: `${b.label} · ${start}–${end} s`, text: `Dices: ${b.text}\nSe ve: ${show}` };
+      });
+      reelBlocks.push({
+        id: uid('b'),
+        label: 'Notas de producción',
+        text: `Duración objetivo: ${total - 5} a ${total} segundos. Graba con luz frontal y deja un silencio breve tras el gancho. Guarda la recompensa (la respuesta) para el final y cierra el video poco después de entregarla.`,
+      });
+    } else {
+      reelBlocks = buildReel(req, c, style);
+    }
+    if (style) {
+      const last = reelBlocks[reelBlocks.length - 1];
+      last.text = `Estilo: ${style.name}. ${style.how}\n\n${last.text}`;
+    }
+    const blocks = reelBlocks.map((b) => ({ ...b, text: v(b.text) }));
+    return { title, blocks, caption: v(`${hookLine}\n\nGuarda este reel para tenerlo a mano. ${tags}`.trim()), templateId: ref };
   }
 
   if (req.format === 'post') {
+    if (ang) {
+      const beats = angleBeats(ang, c, hookLine);
+      const mid = beats.slice(1, -1).map((b) => `${b.label}: ${b.text}`).join('\n\n');
+      const pBlocks: Block[] = [
+        { id: uid('b'), label: 'Gancho', text: v(beats[0].text) },
+        { id: uid('b'), label: 'Cuerpo', text: v(mid || beats[1]?.text || '') },
+        { id: uid('b'), label: 'Cierre', text: v(`${beats[beats.length - 1].label}: ${beats[beats.length - 1].text}`) },
+      ];
+      return { title, blocks: pBlocks, caption: '', templateId: ref };
+    }
     const steps = ARCS[req.tone];
-    const body = [steps[1], steps[2], steps[5]].map((s) => s.text(c)).join('\n\n');
+    const body = [steps[1], steps[2], steps[5]].map((st) => st.text(c)).join('\n\n');
     const blocks: Block[] = [
       { id: uid('b'), label: 'Gancho', text: v(steps[0].text(c)) },
       { id: uid('b'), label: 'Cuerpo', text: v(body) },
       { id: uid('b'), label: 'Cierre', text: v(steps[9].text(c)) },
     ];
-    return { title, blocks, caption: '' };
+    return { title, blocks, caption: '', templateId: ref };
+  }
+
+  // carrusel con un ángulo de contenido
+  if (ang && !req.structure) {
+    const aBlocks: Block[] = angleBeats(ang, c, hookLine).map((b, i, arr) => ({
+      id: uid('b'),
+      label: i === 0 ? 'Slide 1 · Gancho' : i === arr.length - 1 ? `Slide ${i + 1} · ${b.label}` : `Slide ${i + 1} · ${b.label}`,
+      text: v(b.text),
+    }));
+    const aCaption = v(`${hookLine}\n\nDesliza y guarda este carrusel para volver a él. ${tags}`.trim());
+    return { title, blocks: aBlocks, caption: aCaption, templateId: ref };
   }
 
   // carrusel con una estructura de la Biblioteca: cada slide sigue su paso y se rellena a mano
@@ -441,12 +535,34 @@ export function generateSparks(
   tone: ToneId | 'all',
   context: string,
   existingCount: number,
+  angleId?: string,
 ): { tone: ToneId; title: string; hook: string; levels: string[] }[] {
   const tones: ToneId[] = tone === 'all' ? ['faro', 'prueba', 'giro', 'brujula'] : [tone];
   const per = tone === 'all' ? 2 : 6;
   const kwPool = brand.keywords.length ? brand.keywords : [brand.niche || 'tu tema'];
   const ctxLine = { aud: brand.audience.trim() || 'tu cliente ideal', niche: brand.niche.trim() || 'tu sector', outcome: brand.outcome.trim() ? lowerFirst(stripEnd(brand.outcome)) : 'el resultado que buscan' };
   const out: { tone: ToneId; title: string; hook: string; levels: string[] }[] = [];
+
+  const angle = angleId ? ANGLE_BY_ID[angleId] : undefined;
+  if (angle) {
+    const kws = angle.keywords.length ? [...kwPool, ...angle.keywords.slice(0, 2)] : kwPool;
+    const lv = LEVELS[angle.tone];
+    const fill = (tpl: string, k: string) =>
+      tpl.replace(/\{kw\}/g, k).replace(/\{aud\}/g, ctxLine.aud).replace(/\{niche\}/g, ctxLine.niche).replace(/\{outcome\}/g, ctxLine.outcome).replace(/\{brand\}/g, brand.name.trim() || 'tu marca');
+    for (let i = 0; i < 6; i++) {
+      let k = kws[(existingCount + i) % kws.length];
+      if (context.trim() && i === 0) k = lowerFirst(clip(stripEnd(context), 60));
+      const tpl = angle.titles[i % 2];
+      const hookTpl = SPARKS[angle.tone][(existingCount + i) % SPARKS[angle.tone].length];
+      out.push({
+        tone: angle.tone,
+        title: localize(cap(fill(tpl, k)), brand.variant),
+        hook: localize(hookTpl.hook(k, ctxLine), brand.variant),
+        levels: [AWARENESS[lv[0]], AWARENESS[lv[1]], `${SPARK_ANGLE_PREFIX}${angle.id}`],
+      });
+    }
+    return out;
+  }
 
   tones.forEach((t, ti) => {
     for (let i = 0; i < per; i++) {
@@ -469,6 +585,7 @@ export function generateSparks(
 
 export interface CopilotTurn {
   text: string;
+  angle?: string;
   tone: ToneId;
   idea: string;
   format: GenRequest['format'];
@@ -493,10 +610,11 @@ export function copilotReply(input: string, brand: Brand, history: { role: 'user
   const wantsHooks = /otro gancho|más ganchos|mas ganchos|otras aperturas|otro inicio/i.test(msg);
   const refinement = !!prevIdea && !wantsHooks && msg.length < 70;
   const idea = wantsHooks && prevIdea ? prevIdea : refinement && prevIdea ? `${prevIdea}. ${msg}` : msg;
-  const tone = suggestTone(idea);
+  const angle = suggestAngle(idea);
+  const tone = angle ? angle.tone : suggestTone(idea);
   const t = TONES[tone];
   const hooks = hookVariants(tone, idea, brand, turns + (wantsHooks ? 1 : 0));
-  const format = FORMAT_BY_TONE[tone];
+  const format = angle?.objective === 'atraer' ? 'reel' : FORMAT_BY_TONE[tone];
   const c = buildCtx({ format, idea, evidence: '', tone, slides: 7, seed: turns }, brand);
   const beats = pickSteps(tone, 5).map((s) => s.label.toLowerCase()).join(' → ');
 
@@ -513,10 +631,16 @@ export function copilotReply(input: string, brand: Brand, history: { role: 'user
   hooks.forEach((h, i) => lines.push(`${i + 1}. ${h}`));
   if (!wantsHooks) {
     lines.push('');
-    lines.push(`Estructura sugerida (${FORMAT_BY_TONE[tone] === 'carrusel' ? 'carrusel de 5 a 7 slides' : FORMAT_BY_TONE[tone] === 'reel' ? 'reel de 40 segundos' : 'post de texto'}): ${beats}.`);
+    if (angle) {
+      lines.push(`Ángulo sugerido: **${angle.name}** (objetivo: ${OBJECTIVES[angle.objective].name.toLowerCase()}). Pasos: ${angle.beats.map((b) => b.label.toLowerCase()).join(' → ')}.`);
+      lines.push(`Para encontrar tu idea: ${fillGuide(angle.ask, c)}`);
+    } else {
+      lines.push(`Estructura sugerida (${format === 'carrusel' ? 'carrusel de 5 a 7 slides' : format === 'reel' ? 'reel de 40 segundos' : 'post de texto'}): ${beats}.`);
+    }
+    lines.push('Sobre el gancho: mantenlo en menos de 15 palabras y guarda la respuesta para el final, no para el principio.');
     lines.push('');
     lines.push(`Para afilarla: ¿tienes un testimonio o un dato real que la respalde? Si me lo pegas, lo uso tal cual. Si no, dejo el espacio marcado y no invento cifras. También puedes decirme «otro gancho» o pedirme otro formato.`);
   }
   void c;
-  return { text: localize(lines.join('\n'), brand.variant), tone, idea, format };
+  return { text: localize(lines.join('\n'), brand.variant), tone, idea, format, angle: angle?.id };
 }

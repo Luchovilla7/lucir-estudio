@@ -7,6 +7,7 @@ import { generatePiece, STORY_TEMPLATES } from '../lib/engine';
 import { clsx, copyText, countPlaceholders, download, readableOn, uid, wordCount } from '../lib/utils';
 import { AutoTextarea, ToneDot, useToast } from './ui';
 import { IgLink } from './IgLink';
+import { ANGLE_BY_ID, parseRef } from '../lib/angles';
 
 export function pieceToText(p: Piece): string {
   const body = p.blocks.map((b) => `${b.label}\n${b.text}`).join('\n\n');
@@ -50,10 +51,14 @@ export function PieceEditor({
   };
 
   const regenerate = () => {
+    if (parseRef(piece.templateId).struct) {
+      toast('Esta pieza sigue una estructura de la Biblioteca: ajusta cada slide a mano o elige otra estructura.');
+      return;
+    }
     if (!window.confirm('Se reemplazará el contenido actual por una nueva versión. ¿Continuar?')) return;
     const seed = piece.seed + 1;
     const gen = generatePiece(
-      { format: piece.format, idea: piece.idea || piece.title, evidence: piece.evidence, tone: piece.tone, slides: Math.max(3, piece.blocks.length), seed, templateId: piece.format === 'stories' ? undefined : piece.templateId },
+      { format: piece.format, idea: piece.idea || piece.title, evidence: piece.evidence, tone: piece.tone, slides: Math.max(3, piece.blocks.length), seed, templateId: undefined, angle: parseRef(piece.templateId).angle, style: parseRef(piece.templateId).style },
       brand,
     );
     onChange({ blocks: gen.blocks, caption: gen.caption, seed, templateId: gen.templateId ?? piece.templateId });
@@ -77,6 +82,12 @@ export function PieceEditor({
             <ToneDot tone={piece.tone} />
             <span className="dot-sep">·</span>
             <span>{FORMATS[piece.format].name}</span>
+            {parseRef(piece.templateId).angle && ANGLE_BY_ID[parseRef(piece.templateId).angle!] && (
+              <>
+                <span className="dot-sep">·</span>
+                <span>Ángulo: {ANGLE_BY_ID[parseRef(piece.templateId).angle!].name}</span>
+              </>
+            )}
             <span className="dot-sep">·</span>
             <span>{total} palabras</span>
             {pending > 0 && (
@@ -140,11 +151,11 @@ export function PieceEditor({
 
           {piece.format === 'stories' && (
             <>
-              <div className="story-row">
+              <div className="story-row" hidden={!!parseRef(piece.templateId).angle}>
                 <label className="field-inline">
                   Plantilla
                   <select
-                    value={piece.templateId}
+                    value={parseRef(piece.templateId).story ?? ''}
                     onChange={(e) => {
                       const tpl = STORY_TEMPLATES[piece.tone].find((t) => t.id === e.target.value);
                       if (!tpl) return;

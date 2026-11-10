@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Copy, Download, History, ListChecks, PenLine, Play, Printer, RotateCcw, Search, Star, Upload } from 'lucide-react';
 import { useData } from '../lib/store';
-import { ALL_HOOKS, extractPlaceholders, HOOK_GROUPS, HOOK_COUNT, NICHE_LABEL, type HookGroup } from '../lib/hooksData';
+import { ALL_HOOKS, extractPlaceholders, HOOK_GROUPS, HOOK_COUNT, HOOK_GUIDE, NICHE_LABEL, type HookGroup } from '../lib/hooksData';
 import { TONE_LIST, TONES } from '../lib/tones';
 import type { Niche, SavedHook } from '../lib/types';
 import { clsx, copyText, download, localize } from '../lib/utils';
@@ -123,6 +123,33 @@ export default function HookLab() {
         <p><b>Molde:</b> “Si llevas [tiempo] haciendo [acción] y sigues sin [resultado], el problema no es [lo obvio].”</p>
         <p><b>Adaptado:</b> “Si llevas 6 meses publicando a diario y sigues sin clientes, el problema no es que tengas pocos seguidores.”</p>
       </div>
+
+      <details className="card guide-box no-print">
+        <summary>Cómo escribir un buen gancho</summary>
+        <div className="guide-body">
+          <p>{HOOK_GUIDE.what}</p>
+          <div className="guide-cols">
+            <div>
+              <h3>Tipos de gancho</h3>
+              <ul>
+                {HOOK_GUIDE.types.map((t) => (
+                  <li key={t.name}><b>{t.name}:</b> {t.desc}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3>Reglas de oro</h3>
+              <ul>
+                {HOOK_GUIDE.rules.map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <p><b>La recompensa va al final.</b> {HOOK_GUIDE.payoff}</p>
+          <p><b>Habla un escalón más arriba.</b> {HOOK_GUIDE.ladder}</p>
+        </div>
+      </details>
 
       <div className="searchbar no-print">
         <Search size={16} />

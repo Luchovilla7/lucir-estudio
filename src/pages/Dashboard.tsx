@@ -5,6 +5,7 @@ import { FORMAT_LIST, RHYTHM_PHASES, TONE_LIST, TONES } from '../lib/tones';
 import { generateSparks } from '../lib/engine';
 import { fmtDate, fromISO, todayISO } from '../lib/utils';
 import { EmptyState, PageHeader, Section, ToneDot, useToast } from '../components/ui';
+import { ANGLE_BY_ID, OBJECTIVE_LIST, parseRef, sparkAngle } from '../lib/angles';
 
 export default function Dashboard() {
   const { brand, brandPieces, brandSparks, addSparks } = useData();
@@ -29,6 +30,13 @@ export default function Dashboard() {
   const totalTone = byTone.reduce((a, b) => a + b.n, 0);
   const maxT = Math.max(1, ...byTone.map((x) => x.n));
   const least = totalTone > 0 ? [...byTone].sort((a, b) => a.n - b.n)[0] : null;
+  const byObjective = OBJECTIVE_LIST.map((o) => ({
+    o,
+    n: brandPieces.filter((p) => ANGLE_BY_ID[parseRef(p.templateId).angle ?? '']?.objective === o.id).length,
+  }));
+  const withAngle = byObjective.reduce((a, b) => a + b.n, 0);
+  const maxO = Math.max(1, ...byObjective.map((x) => x.n));
+  const leastObj = withAngle > 0 ? [...byObjective].sort((a, b) => a.n - b.n)[0] : null;
 
   let rhythm: { name: string; tip: string; day: number; tone: keyof typeof TONES } | null = null;
   if (brand.cycleEnabled) {
@@ -139,6 +147,29 @@ export default function Dashboard() {
         </Section>
       </div>
 
+      <Section title="Objetivo de tus piezas" sub="Cuántas piezas con ángulo tienes para atraer, conectar y convertir.">
+        {withAngle === 0 ? (
+          <p className="muted pad">Elige un ángulo en el Taller y aquí verás cómo equilibras tus objetivos.</p>
+        ) : (
+          <>
+            <div className="bars">
+              {byObjective.map(({ o, n }) => (
+                <div className="bar-row" key={o.id}>
+                  <span>{o.name}</span>
+                  <div className="bar"><i style={{ width: `${(n / maxO) * 100}%` }} /></div>
+                  <b>{n}</b>
+                </div>
+              ))}
+            </div>
+            {leastObj && (
+              <p className="callout">
+                Tienes pocas piezas para <b>{leastObj.o.name.toLowerCase()}</b>. {leastObj.o.desc}
+              </p>
+            )}
+          </>
+        )}
+      </Section>
+
       <Section
         title="Banco de chispas"
         sub={pending.length ? `${pending.length} ${pending.length === 1 ? 'idea espera' : 'ideas esperan'} ser escritas.` : 'Ideas listas para convertirse en piezas.'}
@@ -149,7 +180,7 @@ export default function Dashboard() {
         ) : (
           <div className="spark-mini">
             {pending.slice(0, 4).map((s) => (
-              <button key={s.id} className="spark-chip" onClick={() => nav('/taller', { state: { idea: s.title, tone: s.tone, sparkId: s.id } })}>
+              <button key={s.id} className="spark-chip" onClick={() => nav('/taller', { state: { idea: s.title, tone: s.tone, sparkId: s.id, angle: sparkAngle(s.levels) } })}>
                 <b>{s.title}</b>
                 <ToneDot tone={s.tone} />
               </button>
