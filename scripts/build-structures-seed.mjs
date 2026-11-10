@@ -1,8 +1,8 @@
-// Genera supabase/004b_seed_structures.sql a partir de supabase/data/carouselcode-structures.json
+// Genera supabase/004b_seed_structures.sql a partir de supabase/data/carousel-structures.json
 // Uso: node scripts/build-structures-seed.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const raw = JSON.parse(readFileSync('supabase/data/carouselcode-structures.json', 'utf8'));
+const raw = JSON.parse(readFileSync('supabase/data/carousel-structures.json', 'utf8'));
 const CAT = { venta: 'Venta', educacion: 'Educación', atraccion: 'Atracción', autoridad: 'Autoridad' };
 const TAG = '$lc$';
 

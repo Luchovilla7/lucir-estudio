@@ -17,7 +17,7 @@ npm run build                # tsc + vite build
 1. `supabase/schema.sql`: tablas, políticas RLS y disparador de perfil.
 2. `supabase/002_delete_account.sql`: permite que cada usuario elimine su propia cuenta desde `/cuenta`.
 3. `supabase/003_instagram.sql`: tablas de la conexión de Instagram (tokens cifrados sin acceso desde el navegador, métricas y vínculo pieza ↔ publicación).
-4. `supabase/004_structures.sql` y luego `supabase/004b_seed_structures.sql`: biblioteca de 31 estructuras de carrusel (tabla compartida de solo lectura). El seed se regenera con `node scripts/build-structures-seed.mjs` a partir de `supabase/data/carouselcode-structures.json`.
+4. `supabase/004_structures.sql` y luego `supabase/004b_seed_structures.sql`: biblioteca de 31 estructuras de carrusel (tabla compartida de solo lectura). El seed se regenera con `node scripts/build-structures-seed.mjs` a partir de `supabase/data/carousel-structures.json`.
 
 Ambos son idempotentes (se pueden volver a ejecutar).
 
