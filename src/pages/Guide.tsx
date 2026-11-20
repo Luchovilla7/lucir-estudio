@@ -58,7 +58,7 @@ export default function Guide() {
           {[
             [Wand2, 'Taller', 'Genera carruseles, stories, reels con guion y posts de texto a partir de una idea.'],
             [FlaskConical, 'Laboratorio', 'Banco de aperturas con plantillas: copia, adapta, rellena los campos y guarda tus versiones.'],
-            [MessagesSquare, 'Copiloto', 'Conversa tu idea y recibe ganchos, estructura y siguiente paso. Guarda lo que sirva.'],
+            [MessagesSquare, 'Copiloto IA', 'Conversa tu idea y recibe ganchos, estructura y siguiente paso. Guarda lo que sirva.'],
             [Mail, 'Cartas', 'Escribe una carta (email) con historia, moraleja y propuesta en 300 a 500 palabras.'],
             [Sparkles, 'Chispas', 'Un banco de ideas estratégicas con su apertura y los niveles de consciencia que activan.'],
             [CalendarDays, 'Agenda', 'Calendario mensual con arrastrar y soltar para fijar la fecha de cada pieza.'],
