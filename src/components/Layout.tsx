@@ -52,7 +52,7 @@ export function Logo() {
         <path d="M32 6c2.4 13 9 19.6 22 26-13 6.4-19.6 13-22 26-2.4-13-9-19.6-22-26 13-6.4 19.6-13 22-26z" fill="var(--accent)" />
       </svg>
       <span className="logo-word">
-        <b>Lucir</b>
+        <b>LUCIR</b>
         <small>estudio de contenido</small>
       </span>
     </Link>
