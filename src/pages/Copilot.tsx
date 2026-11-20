@@ -74,7 +74,7 @@ export default function Copilot() {
   return (
     <>
       <PageHeader
-        title="Copiloto de contenido"
+        title="Copiloto IA"
         sub="Conversa tu idea y sal con la pieza lista."
         actions={<button className="btn ghost sm" onClick={reset}><RotateCcw size={14} /> Nueva conversación</button>}
       />
