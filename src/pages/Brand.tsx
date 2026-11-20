@@ -88,7 +88,7 @@ export default function Brand() {
         </div>
       </Section>
 
-      <Section title="Onboarding del Copiloto" sub="Se responde una sola vez aquí. El Copiloto no vuelve a preguntarlo en el chat.">
+      <Section title="Onboarding del Copiloto IA" sub="Se responde una sola vez aquí. El Copiloto IA no vuelve a preguntarlo en el chat.">
         <div className="form-grid">
           <label className="field full">
             <span className="label">¿Qué problema resuelves?</span>
