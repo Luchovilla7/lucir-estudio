@@ -43,14 +43,14 @@ Ambos son idempotentes (se pueden volver a ejecutar).
 | `/taller` | Taller | Carrusel (3–20 slides), stories (16 plantillas, 4 placas), reel con guion, post de texto. |
 | `/biblioteca` | Biblioteca | 31 estructuras de carrusel por objetivo (Venta, Educación, Atracción, Autoridad) con estrategia, pasos por slide y prompt base. "Usar" las lleva al Taller. |
 | `/aperturas` | Laboratorio | 112 moldes originales, filtro por nicho, búsqueda, "escribir mi versión", favoritos, respaldo/importación, banco imprimible. |
-| `/copiloto` | Copiloto | Chat que propone tono, ganchos y estructura; "Guardar" y "Usar en contenido". |
+| `/copiloto` | Copiloto IA | Chat que propone tono, ganchos y estructura; "Guardar" y "Usar en contenido". |
 | `/cartas` | Cartas | Historia + moraleja + propuesta (4 P), 300–500 palabras, modo "La IA responde / Yo respondo". |
 | `/chispas` | Chispas | Generador de ideas con tono, apertura y niveles de consciencia; banco pendientes/usadas. |
 | `/agenda` | Agenda | Calendario mensual con arrastrar y soltar y panel "Sin agendar". |
 | `/archivo` | Archivo | Filtros, orden, métricas (alcance/guardados), edición y exportación JSON/CSV/Markdown. |
 | `/metricas` | Métricas | Conecta Instagram (cuentas Empresa o Creador) y ve seguidores, alcance, visualizaciones, interacciones y publicaciones. Incluye modo de ejemplo. |
 | `/privacidad` | Privacidad | Política de privacidad (borrador) con datos de Instagram y eliminación de datos. |
-| `/marca` | Mi Marca | Identidad, onboarding del copiloto, voz, variante de español, palabras clave, colores, redes, ritmo personal. Multi-marca. |
+| `/marca` | Mi Marca | Identidad, onboarding del Copiloto IA, voz, variante de español, palabras clave, colores, redes, ritmo personal. Multi-marca. |
 | `/cuenta` | Mi cuenta | Nombre, contraseña, descarga de todos los datos, borrar contenido y eliminar cuenta. |
 
 ## Instagram
@@ -74,7 +74,7 @@ Idea = el tema · **Ángulo** = cómo lo abordas · **Formato** = cómo se ve.
 
 - `src/lib/angles.ts`: 24 ángulos agrupados por objetivo (**Atraer**, **Conectar**, **Convertir**). Cada uno define sus pasos, una pregunta para encontrar la idea, títulos para chispas y palabras clave para sugerirlo. La referencia de ángulo y estilo se guarda en `pieces.template_id` (`angle:xxx|style:yyy`), sin tocar la base de datos; en `sparks.levels` se guarda como `angle:xxx`.
 - `src/lib/videoStyles.ts`: 26 estilos de video para reels (talking head, POV, pizarra, skit, b-roll…). Cada escena del guion indica qué se ve.
-- Taller: elige ángulo (y estilo en reels) y la pieza sigue sus pasos. Chispas: ideas por ángulo, mapa de cliente ideal que se convierte en chispas, fuentes de ideas reales y recursos para regalar. Laboratorio: 112 aperturas y guía de ganchos. Copiloto: sugiere ángulo. Panorama: balance por objetivo.
+- Taller: elige ángulo (y estilo en reels) y la pieza sigue sus pasos. Chispas: ideas por ángulo, mapa de cliente ideal que se convierte en chispas, fuentes de ideas reales y recursos para regalar. Laboratorio: 112 aperturas y guía de ganchos. Copiloto IA: sugiere ángulo. Panorama: balance por objetivo.
 
 ## Arquitectura
 
