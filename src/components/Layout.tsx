@@ -36,7 +36,7 @@ const NAV = [
   { to: '/taller', label: 'Taller', icon: Wand2 },
   { to: '/aperturas', label: 'Laboratorio', icon: FlaskConical },
   { to: '/biblioteca', label: 'Biblioteca', icon: Library },
-  { to: '/copiloto', label: 'Copiloto', icon: MessagesSquare },
+  { to: '/copiloto', label: 'Copiloto IA', icon: MessagesSquare },
   { to: '/cartas', label: 'Cartas', icon: Mail },
   { to: '/chispas', label: 'Chispas', icon: Sparkles },
   { to: '/agenda', label: 'Agenda', icon: CalendarDays },
