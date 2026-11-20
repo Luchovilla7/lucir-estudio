@@ -600,7 +600,7 @@ const FORMAT_BY_TONE: Record<ToneId, GenRequest['format']> = {
 
 export function copilotWelcome(brand: Brand): string {
   const name = brand.name.trim() || 'tu marca';
-  return `Hola. Bienvenida al Copiloto de ${name}.\n\nYa tengo cargada la configuración de tu marca, así que vamos directo al punto: cuéntame una idea de contenido (una conversación real con un cliente, una objeción, algo del sector con lo que no estás de acuerdo o un dolor típico de tu público) y la convierto en una pieza con estructura clara.`;
+  return `Hola. Bienvenida al Copiloto IA de ${name}.\n\nYa tengo cargada la configuración de tu marca, así que vamos directo al punto: cuéntame una idea de contenido (una conversación real con un cliente, una objeción, algo del sector con lo que no estás de acuerdo o un dolor típico de tu público) y la convierto en una pieza con estructura clara.`;
 }
 
 export function copilotReply(input: string, brand: Brand, history: { role: 'user' | 'ai'; idea?: string }[]): CopilotTurn {
