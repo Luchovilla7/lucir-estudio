@@ -2,7 +2,7 @@
 
 Estudio de contenido para marcas personales y negocios de servicios: convierte una idea suelta en carruseles, stories, reels con guion, posts de texto y cartas (email), con el tono de la marca, y los ordena en una agenda y un archivo.
 
-Frontend en React + Vite + TypeScript. Cuentas y datos en **Supabase** (Auth + Postgres con Row Level Security). La generación de contenido es, por ahora, un motor local de plantillas (`src/lib/engine.ts`).
+Frontend en React + Vite + TypeScript. Cuentas y datos en **Supabase** (Auth + Postgres con Row Level Security). El Taller genera contenido con Claude usando la estrategia y la voz de marca configuradas.
 
 ## Puesta en marcha
 
@@ -35,7 +35,8 @@ La plantilla está en `.env.example`. Copia las variables correspondientes a `.e
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Vercel + `.env.local` | pública (`sb_publishable_…`) |
 | `SUPABASE_URL` | solo Vercel | URL del mismo proyecto Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | solo Vercel | secreta (`sb_secret_…`), para endpoints de servidor |
-| `ANTHROPIC_API_KEY` | solo Vercel | secreta, para generar con Claude |
+| `ANTHROPIC_API_KEY` | solo Vercel | secreta, necesaria para generar con Claude |
+| `ANTHROPIC_MODEL` | solo Vercel, opcional | modelo Claude; por defecto `claude-sonnet-4-5-20250929` |
 | `META_APP_ID` | solo Vercel | ID de la app en Meta for Developers |
 | `META_APP_SECRET` | solo Vercel | Secreto de la app; nunca lo compartas ni lo pongas en el frontend |
 | `META_CONFIG_ID` | solo Vercel | ID de la configuración de Instagram API con Unified Login en Meta |
@@ -82,7 +83,15 @@ Pasos para conectar Meta for Developers:
 7. Después de agregar `META_CONFIG_ID` y guardar las variables, vuelve a desplegar Production. Abre `/metricas`, pulsa **Conectar con Instagram** e inicia sesión; Meta te pedirá elegir el portfolio y la cuenta profesional que compartirás.
 8. En modo desarrollo, solo podrán probar personas con rol en la app y activos compartidos. Para clientes externos, solicita Advanced Access/App Review para esos permisos y activa la app en Live, según lo que pida el panel de Meta.
 
-## Estrategia de contenido (sin IA)
+## Generación con Claude
+
+El Taller (`/taller`) genera carruseles, stories, reels y posts mediante `POST /api/content/generate`. La función valida la sesión de Supabase, comprueba que la marca pertenezca a la persona y carga del servidor la estructura elegida desde `carousel_structures`, incluyendo su estrategia, secuencia y prompt metodológico. También envía a Claude la voz, el público, el problema, el resultado, las palabras clave, el tono y los datos aportados para la pieza. La regeneración de piezas también usa Claude.
+
+Configura `ANTHROPIC_API_KEY` como variable secreta de Vercel para los entornos que uses. No la agregues a una variable `VITE_` ni al navegador. En local, crea `.env.local` a partir de `.env.example` y ejecuta `vercel dev` para que las rutas de servidor `/api` estén disponibles. Las generaciones registran modelo y tokens en `usage_events`.
+
+La metodología se aplica en una sola interacción: Claude entrega un primer borrador y deja marcadores cuando necesita datos reales, sin inventar testimonios, cifras ni experiencias.
+
+## Estrategia de contenido
 
 Idea = el tema · **Ángulo** = cómo lo abordas · **Formato** = cómo se ve.
 
@@ -97,7 +106,8 @@ src/
   lib/
     supabase.ts    cliente de Supabase
     store.tsx      AuthProvider + DataProvider (carga, escritura optimista y con espera)
-    engine.ts      generación local: generatePiece, generateSparks, copilotReply
+    engine.ts      generación local restante: ideas y Copiloto
+    ai.ts          cliente autenticado para generación con Claude
     hooksData.ts   banco de aperturas (contenido original)
     tones.ts       tonos, formatos, estados, plataformas
   components/      Layout, PieceEditor, ui
@@ -109,7 +119,7 @@ Los tonos propios son **Faro, Prueba, Giro y Brújula**.
 
 ## Qué falta
 
-1. **Generación con IA**: reemplazar `generatePiece`, `generateSparks` y `copilotReply` de `engine.ts` por llamadas a un endpoint de servidor (`/api`) que invoque a Claude con la configuración de la marca como contexto, valide la sesión y registre consumo en `usage_events` (la tabla ya existe).
+1. Extender la generación con Claude a Chispas, Copiloto y Cartas; hoy está conectada en el Taller y en la regeneración de piezas.
 2. Límites de uso y planes (`profiles.plan` ya existe), y facturación si será de suscripción.
 3. Publicación directa en redes y recordatorios de la agenda por correo o push.
 4. Métricas de otras redes (hoy solo Instagram; el resto se carga a mano).

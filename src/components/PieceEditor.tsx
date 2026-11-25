@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, Copy, CopyPlus, Download, RefreshCw, Star, Trash2, Plus } from 'lucide-react';
 import { useData } from '../lib/store';
 import { FORMATS, PLATFORMS, STATUSES, TONES, TONE_LIST } from '../lib/tones';
 import type { Block, Piece, ToneId } from '../lib/types';
 import { generatePiece, STORY_TEMPLATES } from '../lib/engine';
+import { generateWithClaude } from '../lib/ai';
 import { clsx, copyText, countPlaceholders, download, readableOn, uid, wordCount } from '../lib/utils';
 import { AutoTextarea, ToneDot, useToast } from './ui';
 import { IgLink } from './IgLink';
@@ -29,6 +30,7 @@ export function PieceEditor({
 }) {
   const { brand } = useData();
   const toast = useToast();
+  const [regenerating, setRegenerating] = useState(false);
   const tone = TONES[piece.tone];
   const c1 = brand.colors[0] || '#FF9A5A';
   const c2 = brand.colors[1] || '#1A1613';
@@ -50,19 +52,25 @@ export function PieceEditor({
     onChange({ blocks: [...piece.blocks, nb] });
   };
 
-  const regenerate = () => {
-    if (parseRef(piece.templateId).struct) {
-      toast('Esta pieza sigue una estructura de la Biblioteca: ajusta cada slide a mano o elige otra estructura.');
-      return;
-    }
+  const regenerate = async () => {
+    if (regenerating) return;
     if (!window.confirm('Se reemplazará el contenido actual por una nueva versión. ¿Continuar?')) return;
     const seed = piece.seed + 1;
-    const gen = generatePiece(
-      { format: piece.format, idea: piece.idea || piece.title, evidence: piece.evidence, tone: piece.tone, slides: Math.max(3, piece.blocks.length), seed, templateId: undefined, angle: parseRef(piece.templateId).angle, style: parseRef(piece.templateId).style },
-      brand,
-    );
-    onChange({ blocks: gen.blocks, caption: gen.caption, seed, templateId: gen.templateId ?? piece.templateId });
-    toast('Nueva versión generada');
+    setRegenerating(true);
+    try {
+      const ref = parseRef(piece.templateId);
+      const structureId = ref.struct;
+      const gen = await generateWithClaude(
+        { format: piece.format, idea: piece.idea || piece.title, evidence: piece.evidence, tone: piece.tone, slides: Math.max(3, piece.blocks.length), seed, templateId: undefined, structure: structureId ? { id: structureId, steps: [] } : undefined, angle: ref.angle, style: ref.style },
+        brand,
+      );
+      onChange({ title: gen.title, blocks: gen.blocks, caption: gen.caption, seed, templateId: gen.templateId ?? piece.templateId });
+      toast('Nueva versión generada con Claude');
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'No se pudo generar otra versión.');
+    } finally {
+      setRegenerating(false);
+    }
   };
 
   const copyAll = async () => toast((await copyText(pieceToText(piece))) ? 'Pieza copiada' : 'No se pudo copiar', 'ok');
@@ -108,8 +116,8 @@ export function PieceEditor({
           <button className="icon-btn" onClick={dl} title="Descargar .txt" aria-label="Descargar">
             <Download size={16} />
           </button>
-          <button className="icon-btn" onClick={regenerate} title="Generar otra versión" aria-label="Regenerar">
-            <RefreshCw size={16} />
+          <button className="icon-btn" onClick={regenerate} disabled={regenerating} title="Generar otra versión" aria-label="Regenerar">
+            <RefreshCw size={16} className={regenerating ? 'spin' : undefined} />
           </button>
           {onDuplicate && (
             <button className="icon-btn" onClick={onDuplicate} title="Duplicar" aria-label="Duplicar">

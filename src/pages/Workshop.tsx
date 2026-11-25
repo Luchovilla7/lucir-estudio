@@ -4,6 +4,7 @@ import { Camera, FileText, Film, LayoutGrid, Mail, Sparkles, Wand2 } from 'lucid
 import { newPiece, useData } from '../lib/store';
 import { FORMAT_LIST, FORMATS, TONE_LIST, TONES } from '../lib/tones';
 import { generatePiece, STORY_TEMPLATES, suggestTone } from '../lib/engine';
+import { generateWithClaude } from '../lib/ai';
 import type { Format, ToneId } from '../lib/types';
 import { clsx } from '../lib/utils';
 import { PageHeader, useToast } from '../components/ui';
@@ -39,6 +40,7 @@ export default function Workshop() {
   const [angleId, setAngleId] = useState(incoming.angle ?? '');
   const [objective, setObjective] = useState<Objective>(ANGLE_BY_ID[incoming.angle ?? '']?.objective ?? 'atraer');
   const [styleId, setStyleId] = useState('');
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     if (incoming.idea) window.history.replaceState({}, '');
@@ -59,33 +61,38 @@ export default function Workshop() {
   const canGen = idea.trim().length >= 8;
   const configured = brand.name.trim().length > 0;
 
-  const generate = () => {
-    if (!canGen) return;
+  const generate = async () => {
+    if (!canGen || generating) return;
+    setGenerating(true);
     const seed = 0;
-    const gen = generatePiece(
-      { format, idea, evidence, tone, slides, seed, templateId: templateId || undefined, structure: format === 'carrusel' && structure ? { id: structure.id, steps: structure.steps } : undefined, angle: activeAngle?.id, style: format === 'reel' ? styleId || undefined : undefined },
-      brand,
-    );
-    const piece = newPiece({
-      brandId: brand.id,
-      title: gen.title,
-      format,
-      tone,
-      platform: FORMATS[format].defaultPlatform,
-      blocks: gen.blocks,
-      caption: gen.caption,
-      idea: idea.trim(),
-      evidence: evidence.trim(),
-      templateId: gen.templateId,
-      seed,
-    });
-    addPiece(piece);
-    setCurrentId(piece.id);
-    if (sparkId) {
-      updateSpark(sparkId, { used: true });
-      setSparkId(undefined);
+    try {
+      const request = { format, idea, evidence, tone, slides, seed, templateId: templateId || undefined, structure: format === 'carrusel' && structure ? { id: structure.id, steps: structure.steps } : undefined, angle: activeAngle?.id, style: format === 'reel' ? styleId || undefined : undefined };
+      const gen = await generateWithClaude(request, brand);
+      const piece = newPiece({
+        brandId: brand.id,
+        title: gen.title,
+        format,
+        tone,
+        platform: FORMATS[format].defaultPlatform,
+        blocks: gen.blocks,
+        caption: gen.caption,
+        idea: idea.trim(),
+        evidence: evidence.trim(),
+        templateId: gen.templateId,
+        seed,
+      });
+      addPiece(piece);
+      setCurrentId(piece.id);
+      if (sparkId) {
+        updateSpark(sparkId, { used: true });
+        setSparkId(undefined);
+      }
+      toast('Pieza generada con Claude y guardada en tu Archivo');
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'No se pudo generar la pieza.');
+    } finally {
+      setGenerating(false);
     }
-    toast('Pieza generada y guardada en tu Archivo');
   };
 
   return (
@@ -243,10 +250,10 @@ export default function Workshop() {
             )}
           </p>
 
-          <button className="btn primary block" disabled={!canGen} onClick={generate}>
-            <Wand2 size={16} /> Generar
+          <button className="btn primary block" disabled={!canGen || generating} onClick={generate}>
+            <Wand2 size={16} /> {generating ? 'Generando con Claude…' : 'Generar'}
           </button>
-          <p className="hint center">El borrador se genera con tu marca y se guarda en tu cuenta.</p>
+          <p className="hint center">Claude sigue tu estrategia, la estructura elegida y la configuración de tu marca. El resultado se guarda en tu cuenta.</p>
         </div>
 
         <div className="result">
