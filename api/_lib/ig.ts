@@ -168,9 +168,6 @@ export async function exchangeCode(code: string, redirect: string) {
   return { token: j.access_token as string, expiresIn: Number(j.expires_in ?? 0) };
 }
 
-export const PROFILE_FIELDS = 'id,username,name,account_type,profile_picture_url,followers_count,media_count';
-
-export function isProfessional(accountType: string): boolean {
-  const t = (accountType || '').toLowerCase();
-  return t.includes('business') || t.includes('creator');
-}
+// Unified Login returns only Instagram professional accounts from
+// /me/assigned_instagram_accounts; `account_type` belongs to the legacy login API.
+export const PROFILE_FIELDS = 'id,username,name,profile_picture_url,followers_count,media_count';

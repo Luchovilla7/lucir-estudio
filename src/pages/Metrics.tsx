@@ -274,7 +274,7 @@ export default function Metrics() {
             <div className="grow">
               <h2>@{conn.username}</h2>
               <p className="muted small">
-                {conn.accountType.toLowerCase().includes('creator') ? 'Cuenta de creador' : 'Cuenta de empresa'} · actualizado {ago(conn.lastSyncedAt)}
+                {conn.accountType.toLowerCase().includes('creator') ? 'Cuenta de creador' : conn.accountType.toLowerCase().includes('business') ? 'Cuenta de empresa' : 'Cuenta profesional'} · actualizado {ago(conn.lastSyncedAt)}
               </p>
             </div>
             {conn.status === 'expired' && <span className="status-pill" style={{ ['--tc' as string]: '#ff6b6b' }}>Conexión vencida</span>}

@@ -6,7 +6,6 @@ import {
   gget,
   GRAPH_VERSION,
   isConfigured,
-  isProfessional,
   PROFILE_FIELDS,
   redirectUri,
   siteUrl,
@@ -47,8 +46,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     stage = 'load_profile';
     const profile = (await gget(`${GRAPH_VERSION}/${igUserId}`, { fields: PROFILE_FIELDS }, access.token)) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-    if (!isProfessional(String(profile.account_type ?? ''))) return back('personal');
-
     const now = new Date().toISOString();
     stage = 'save_connection';
     const { data: conn, error: ce } = await sb
@@ -61,7 +58,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           username: profile.username ?? '',
           name: profile.name ?? '',
           profile_picture_url: profile.profile_picture_url ?? null,
-          account_type: profile.account_type ?? '',
+          // The assigned Instagram accounts edge only contains professional accounts.
+          // Unified Login does not expose the legacy `account_type` profile field.
+          account_type: 'PROFESSIONAL',
           followers_count: profile.followers_count ?? 0,
           media_count: profile.media_count ?? 0,
           status: 'active',
