@@ -10,13 +10,12 @@ import {
   PROFILE_FIELDS,
   redirectUri,
   siteUrl,
-  toLongLived,
   verifyState,
 } from '../_lib/ig.js';
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? '';
 
-/** Instagram redirige aquí tras la autorización. Intercambia el código por un token y guarda la conexión. */
+/** Meta redirige aquí tras Unified Login. Intercambia el código y guarda la cuenta y el token. */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const site = siteUrl(req);
   const back = (flag: string) => res.redirect(302, `${site}/metricas?ig=${flag}`);
@@ -30,19 +29,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const state = verifyState(first(req.query.state));
   if (!code || !state) return back('error');
 
+  let stage = 'validate';
   try {
     const sb = admin();
     const { data: brand } = await sb.from('brands').select('id').eq('id', state.b).eq('user_id', state.u).maybeSingle();
     if (!brand) return back('error');
 
-    const short = await exchangeCode(code, redirectUri(req));
-    const long = await toLongLived(short.token);
-    const profile = (await gget(`${GRAPH_VERSION}/me`, { fields: PROFILE_FIELDS }, long.token)) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    stage = 'exchange_code';
+    const access = await exchangeCode(code, redirectUri(req));
+    stage = 'find_instagram_accounts';
+    const accounts = (await gget(`${GRAPH_VERSION}/me/assigned_instagram_accounts`, { fields: 'id,username' }, access.token)) as { data?: Array<{ id: string }> };
+    const assigned = accounts.data ?? [];
+    if (assigned.length > 1) return back('multiple_accounts');
+    const igUserId = String(assigned[0]?.id ?? '');
+    if (!igUserId) return back('no_account');
+
+    stage = 'load_profile';
+    const profile = (await gget(`${GRAPH_VERSION}/${igUserId}`, { fields: PROFILE_FIELDS }, access.token)) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
     if (!isProfessional(String(profile.account_type ?? ''))) return back('personal');
 
-    const igUserId = String(profile.user_id ?? short.userId);
     const now = new Date().toISOString();
+    stage = 'save_connection';
     const { data: conn, error: ce } = await sb
       .from('instagram_connections')
       .upsert(
@@ -58,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           media_count: profile.media_count ?? 0,
           status: 'active',
           last_error: null,
-          token_expires_at: new Date(Date.now() + long.expiresIn * 1000).toISOString(),
+          token_expires_at: access.expiresIn > 0 ? new Date(Date.now() + access.expiresIn * 1000).toISOString() : null,
           connected_at: now,
           updated_at: now,
         },
@@ -68,11 +76,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .single();
     if (ce || !conn) return back('error');
 
-    const { error: te } = await sb.from('instagram_tokens').upsert({ connection_id: conn.id, token_enc: encrypt(long.token), updated_at: now }, { onConflict: 'connection_id' });
+    const { error: te } = await sb.from('instagram_tokens').upsert({ connection_id: conn.id, token_enc: encrypt(access.token), updated_at: now }, { onConflict: 'connection_id' });
     if (te) return back('error');
 
     return back('ok');
-  } catch {
+  } catch (e) {
+    console.error(`Instagram Unified Login callback failed at ${stage}:`, e instanceof Error ? e.message : 'unknown error');
     return back('error');
   }
 }

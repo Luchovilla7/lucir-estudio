@@ -26,12 +26,23 @@ Ambos son idempotentes (se pueden volver a ejecutar).
 - **Sign In / Providers → Confirm email:** recomendado activo en producción. El registro y la recuperación ya contemplan ambos casos.
 
 ### Variables de entorno
+
+La plantilla está en `.env.example`. Copia las variables correspondientes a `.env.local` para desarrollo y configúralas también en **Vercel → Settings → Environment Variables**. No publiques `.env.local` ni pongas secretos en variables `VITE_`.
+
 | Variable | Dónde | Notas |
 |---|---|---|
 | `VITE_SUPABASE_URL` | Vercel + `.env.local` | pública |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Vercel + `.env.local` | pública (`sb_publishable_…`) |
+| `SUPABASE_URL` | solo Vercel | URL del mismo proyecto Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | solo Vercel | secreta (`sb_secret_…`), para endpoints de servidor |
 | `ANTHROPIC_API_KEY` | solo Vercel | secreta, para generar con Claude |
+| `META_APP_ID` | solo Vercel | ID de la app en Meta for Developers |
+| `META_APP_SECRET` | solo Vercel | Secreto de la app; nunca lo compartas ni lo pongas en el frontend |
+| `META_CONFIG_ID` | solo Vercel | ID de la configuración de Instagram API con Unified Login en Meta |
+| `TOKEN_ENC_KEY` | solo Vercel | 32 bytes en base64 para cifrar tokens de Instagram (`openssl rand -base64 32`) |
+| `SITE_URL` | solo Vercel | Dominio público de la app, sin `/` final |
+| `CRON_SECRET` | solo Vercel | secreto aleatorio para proteger la sincronización diaria |
+| `IG_API_VERSION` | solo Vercel, opcional | versión Graph API; el código usa `v27.0` si no se define |
 
 ## Secciones
 
@@ -55,18 +66,21 @@ Ambos son idempotentes (se pueden volver a ejecutar).
 
 ## Instagram
 
-Usa **Instagram API con inicio de sesión de Instagram** (solo lectura: `instagram_business_basic` e `instagram_business_manage_insights`). No requiere Página de Facebook.
+Usa **Instagram API con Unified Login** (solo lectura: `instagram_basic` e `instagram_manage_insights`). Requiere que la app de Meta esté vinculada a un portfolio comercial y tenga una configuración de Unified Login con estos permisos. No requiere Página de Facebook.
 
-Flujo: `Métricas → /api/instagram/start` (URL firmada) → Instagram → `/api/instagram/callback` (intercambia el código por un token de 60 días, lo cifra con AES-256-GCM y lo guarda) → `/api/instagram/sync` (perfil, alcance diario, totales de 30 días y publicaciones con métricas). Una tarea diaria (`/api/instagram/cron`) renueva tokens y sincroniza. Se puede vincular una pieza con su publicación para traer alcance y guardados automáticamente.
+Flujo: `Métricas → /api/instagram/start` (Facebook Login for Business con `config_id`) → Meta → `/api/instagram/callback` (intercambia el código por un token del sistema de integración empresarial, lo cifra con AES-256-GCM y lo guarda) → `graph.facebook.com` para consultar perfil, alcance diario, totales de 30 días y publicaciones con métricas. La validez del token depende de la configuración de Meta; si vence, hay que reconectar. Una tarea diaria (`/api/instagram/cron`) sincroniza las métricas. Se puede vincular una pieza con su publicación para traer alcance y guardados automáticamente.
 
 Funciones de servidor en `api/`: `config`, `start`, `callback`, `sync`, `disconnect`, `cron`, `deauthorize` y `data-deletion` (los dos últimos son los avisos obligatorios de Meta).
 
-Pasos en Meta for Developers (resumen):
-1. Crear una app de tipo **Empresa** y añadir el producto **Instagram → API con inicio de sesión de Instagram**.
-2. Redirect URI: `https://TU-DOMINIO/api/instagram/callback`.
-3. Desautorización: `https://TU-DOMINIO/api/instagram/deauthorize`. Eliminación de datos: `https://TU-DOMINIO/api/instagram/data-deletion`. Política de privacidad: `https://TU-DOMINIO/privacidad`.
-4. En desarrollo, añadir las cuentas de prueba como **Evaluadores de Instagram**. Para clientes reales hay que pasar **App Review** (permisos de lectura de métricas) y verificación de empresa.
-5. Cargar en Vercel las variables de `.env.example` (META_APP_ID, META_APP_SECRET, TOKEN_ENC_KEY, CRON_SECRET, SITE_URL y SUPABASE_SERVICE_ROLE_KEY).
+Pasos para conectar Meta for Developers:
+1. Abre el caso de uso **Administrar mensajes y contenido en Instagram** y entra en **API setup with Unified Login**. Vincula la app a un portfolio comercial si Meta lo solicita.
+2. En **Configure your app**, crea y selecciona una configuración compatible con Instagram Login. Incluye `instagram_basic` e `instagram_manage_insights` y habilita compartir una cuenta profesional.
+3. En el campo **Redirect URL** de esa configuración registra exactamente `https://TU-DOMINIO/api/instagram/callback` (HTTPS, sin barra final).
+4. Copia el `config_id` a `META_CONFIG_ID` en Vercel. Copia el **Meta App ID** y **App Secret** a `META_APP_ID` y `META_APP_SECRET`. No uses el token generado manualmente.
+5. En la configuración general registra `https://TU-DOMINIO/api/instagram/deauthorize` como callback de desautorización, `https://TU-DOMINIO/api/instagram/data-deletion` como callback de eliminación de datos y `https://TU-DOMINIO/privacidad` como política de privacidad.
+6. Ejecuta `supabase/003_instagram.sql` en SQL Editor si aún no lo hiciste. En Vercel configura también `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `TOKEN_ENC_KEY`, `SITE_URL` y `CRON_SECRET`. Genera `TOKEN_ENC_KEY` con `openssl rand -base64 32`.
+7. Después de agregar `META_CONFIG_ID` y guardar las variables, vuelve a desplegar Production. Abre `/metricas`, pulsa **Conectar con Instagram** e inicia sesión; Meta te pedirá elegir el portfolio y la cuenta profesional que compartirás.
+8. En modo desarrollo, solo podrán probar personas con rol en la app y activos compartidos. Para clientes externos, solicita Advanced Access/App Review para esos permisos y activa la app en Live, según lo que pida el panel de Meta.
 
 ## Estrategia de contenido (sin IA)
 

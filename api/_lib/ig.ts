@@ -1,5 +1,5 @@
 /**
- * Utilidades de servidor para la conexión con Instagram (API con inicio de sesión de Instagram).
+ * Utilidades de servidor para la conexión con Instagram (API con Unified Login).
  * Solo se ejecuta en funciones de Vercel: aquí viven los secretos (META_APP_SECRET, clave de cifrado,
  * service role de Supabase). Nada de este archivo llega al navegador.
  */
@@ -8,7 +8,7 @@ import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEq
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export const GRAPH_VERSION = process.env.IG_API_VERSION || 'v27.0';
-export const SCOPES = 'instagram_business_basic,instagram_business_manage_insights';
+export const IG_CONFIG_ID = process.env.META_CONFIG_ID || '';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -18,9 +18,10 @@ const ENC_KEY = process.env.TOKEN_ENC_KEY || '';
 
 export const appId = () => APP_ID;
 export const appSecret = () => APP_SECRET;
+export const configId = () => IG_CONFIG_ID;
 
 export function isConfigured(): boolean {
-  return Boolean(SUPABASE_URL && SERVICE_KEY && APP_ID && APP_SECRET && ENC_KEY);
+  return Boolean(SUPABASE_URL && SERVICE_KEY && APP_ID && APP_SECRET && IG_CONFIG_ID && ENC_KEY);
 }
 
 export function siteUrl(req: VercelRequest): string {
@@ -125,7 +126,7 @@ export function parseSignedRequest(signed: string): { user_id?: string } | null 
   }
 }
 
-/* ───────────── llamadas a la API de Instagram ───────────── */
+/* ───────────── llamadas a la API de Instagram (Unified Login) ───────────── */
 
 export class IgError extends Error {
   constructor(
@@ -149,32 +150,25 @@ async function parse(r: Response) {
   return j;
 }
 
-/** GET a graph.instagram.com. `path` sin barra inicial (por ejemplo `v27.0/me`). */
+/** GET a graph.facebook.com. `path` sin barra inicial (por ejemplo `v27.0/me`). */
 export async function gget(path: string, params: Record<string, string>, token?: string) {
-  const url = new URL(`https://graph.instagram.com/${path}`);
+  const url = new URL(`https://graph.facebook.com/${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   if (token) url.searchParams.set('access_token', token);
   return parse(await fetch(url));
 }
 
 export async function exchangeCode(code: string, redirect: string) {
-  const body = new URLSearchParams({ client_id: APP_ID, client_secret: APP_SECRET, grant_type: 'authorization_code', redirect_uri: redirect, code });
-  const j = await parse(await fetch('https://api.instagram.com/oauth/access_token', { method: 'POST', body }));
-  const row = Array.isArray(j.data) ? j.data[0] : j;
-  return { token: row.access_token as string, userId: String(row.user_id ?? '') };
+  const url = new URL(`https://graph.facebook.com/${GRAPH_VERSION}/oauth/access_token`);
+  url.searchParams.set('client_id', APP_ID);
+  url.searchParams.set('client_secret', APP_SECRET);
+  url.searchParams.set('redirect_uri', redirect);
+  url.searchParams.set('code', code);
+  const j = await parse(await fetch(url));
+  return { token: j.access_token as string, expiresIn: Number(j.expires_in ?? 0) };
 }
 
-export async function toLongLived(shortToken: string) {
-  const j = await gget('access_token', { grant_type: 'ig_exchange_token', client_secret: APP_SECRET }, shortToken);
-  return { token: j.access_token as string, expiresIn: Number(j.expires_in ?? 5_184_000) };
-}
-
-export async function refreshLongLived(token: string) {
-  const j = await gget('refresh_access_token', { grant_type: 'ig_refresh_token' }, token);
-  return { token: j.access_token as string, expiresIn: Number(j.expires_in ?? 5_184_000) };
-}
-
-export const PROFILE_FIELDS = 'user_id,username,name,account_type,profile_picture_url,followers_count,media_count';
+export const PROFILE_FIELDS = 'id,username,name,account_type,profile_picture_url,followers_count,media_count';
 
 export function isProfessional(accountType: string): boolean {
   const t = (accountType || '').toLowerCase();

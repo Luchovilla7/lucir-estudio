@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { decrypt, encrypt, gget, GRAPH_VERSION, IgError, PROFILE_FIELDS, refreshLongLived } from './ig.js';
+import { decrypt, gget, GRAPH_VERSION, IgError, PROFILE_FIELDS } from './ig.js';
 
 const DAY = 86_400_000;
 
@@ -18,27 +18,12 @@ export async function syncConnection(sb: SupabaseClient, connectionId: string): 
   const { data: tk } = await sb.from('instagram_tokens').select('token_enc').eq('connection_id', connectionId).single();
   if (!tk) throw new Error('Token no encontrado');
 
-  let token = decrypt(tk.token_enc as string);
+  const token = decrypt(tk.token_enc as string);
   const markExpired = async (msg: string) => {
     await sb.from('instagram_connections').update({ status: 'expired', last_error: msg, updated_at: new Date().toISOString() }).eq('id', connectionId);
   };
 
-  // Renueva el token si vence pronto (los de larga duración duran 60 días y se renuevan tras 24 h)
-  let expiresAt: string | null = conn.token_expires_at as string | null;
-  if (expiresAt && new Date(expiresAt).getTime() - Date.now() < 15 * DAY) {
-    try {
-      const r = await refreshLongLived(token);
-      token = r.token;
-      expiresAt = new Date(Date.now() + r.expiresIn * 1000).toISOString();
-      await sb.from('instagram_tokens').update({ token_enc: encrypt(token), updated_at: new Date().toISOString() }).eq('connection_id', connectionId);
-    } catch (e) {
-      if (e instanceof IgError && e.expired) {
-        await markExpired('La conexión venció. Vuelve a conectar Instagram.');
-        throw e;
-      }
-      // Si falla por otra razón (p. ej. token demasiado reciente) seguimos con el actual.
-    }
-  }
+  const expiresAt: string | null = conn.token_expires_at as string | null;
 
   const ig = conn.ig_user_id as string;
   const v = GRAPH_VERSION;
@@ -47,7 +32,7 @@ export async function syncConnection(sb: SupabaseClient, connectionId: string): 
 
   try {
     // 1) Perfil
-    const profile = (await gget(`${v}/me`, { fields: PROFILE_FIELDS }, token)) as Row;
+    const profile = (await gget(`${v}/${ig}`, { fields: PROFILE_FIELDS }, token)) as Row;
 
     // 2) Alcance diario (serie) y totales de 30 días
     const daily: Row[] = [];

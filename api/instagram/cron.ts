@@ -5,7 +5,7 @@ import { syncConnection } from '../_lib/ig-sync.js';
 export const config = { maxDuration: 60 };
 
 /**
- * Tarea diaria (vercel.json → crons): renueva tokens y actualiza las métricas de todas las conexiones activas.
+ * Tarea diaria (vercel.json → crons): actualiza las métricas de todas las conexiones activas.
  * Vercel envía `Authorization: Bearer $CRON_SECRET` si CRON_SECRET está definida.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {

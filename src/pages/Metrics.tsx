@@ -86,6 +86,8 @@ export default function Metrics() {
       ok: { kind: 'ok', text: '¡Instagram conectado! Estamos trayendo tus métricas.' },
       cancelled: { kind: 'warn', text: 'No se conectó nada: cancelaste la autorización. Puedes intentarlo de nuevo cuando quieras.' },
       personal: { kind: 'warn', text: 'Esa cuenta es personal. Para ver métricas, Instagram exige una cuenta Profesional (Empresa o Creador).' },
+      no_account: { kind: 'warn', text: 'Meta no compartió una cuenta profesional con Lucir. En la autorización, selecciona tu cuenta de Instagram y acepta el permiso de acceso.' },
+      multiple_accounts: { kind: 'warn', text: 'Compartiste varias cuentas profesionales. Lucir conecta una por marca; vuelve a Meta y comparte una sola cuenta para esta marca.' },
       not_configured: { kind: 'warn', text: 'La conexión con Instagram todavía no está habilitada.' },
       error: { kind: 'warn', text: 'No pudimos completar la conexión. Inténtalo de nuevo en un momento.' },
     };

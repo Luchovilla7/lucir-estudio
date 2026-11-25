@@ -192,7 +192,14 @@ export function useInstagram(brandId: string) {
       window.location.href = url;
     } catch (e) {
       setBusy('');
-      setError(e instanceof ApiError && e.code === 'not_configured' ? 'La conexión con Instagram todavía no está habilitada.' : 'No pudimos iniciar la conexión. Inténtalo de nuevo.');
+      const messages: Record<string, string> = {
+        not_configured: 'La conexión no está configurada en el servidor. Revisa las variables de Instagram y Supabase en Vercel.',
+        unauthorized: 'Tu sesión venció. Cierra sesión, vuelve a entrar e inténtalo otra vez.',
+        brand_required: 'No encontramos una marca activa para conectar. Selecciona o crea una marca y vuelve a intentarlo.',
+        brand_not_found: 'La marca no aparece en este proyecto de Supabase. Revisa que Vercel y la app usen el mismo proyecto.',
+        not_available: 'El endpoint de Instagram no respondió como una función de API. Comprueba que la app esté desplegada en Vercel y revisa los logs de /api/instagram/start.',
+      };
+      setError(e instanceof ApiError ? messages[e.code] ?? `No pudimos iniciar la conexión (error: ${e.code}). Revisa los logs de /api/instagram/start en Vercel.` : 'No pudimos iniciar la conexión. Revisa los logs de /api/instagram/start en Vercel.');
     }
   }, [brandId]);
 
