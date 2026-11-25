@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lightbulb, Sparkles, Trash2, Wand2, Check, Undo2 } from 'lucide-react';
 import { useData } from '../lib/store';
-import { generateSparks } from '../lib/engine';
+import { generateSparksWithClaude } from '../lib/ai';
 import { TONE_LIST } from '../lib/tones';
 import type { ToneId } from '../lib/types';
 import { clsx } from '../lib/utils';
@@ -22,15 +22,26 @@ export default function Sparks() {
   const [busy, setBusy] = useState(false);
   const [angleId, setAngleId] = useState('');
 
-  const generate = () => {
+  const generate = async () => {
+    if (busy) return;
     setBusy(true);
-    setTimeout(() => {
-      const list = generateSparks(brand, tone, context, brandSparks.length, angleId || undefined);
+    try {
+      const list = await generateSparksWithClaude(
+        brand,
+        tone,
+        context,
+        brandSparks.length,
+        angleId || undefined,
+        brandSparks.map((spark) => spark.title),
+      );
       addSparks(list);
-      setBusy(false);
       setFilter('pendientes');
-      toast(`${list.length} chispas nuevas`);
-    }, 450);
+      toast(`${list.length} ideas nuevas con tu metodología`);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'No se pudieron generar las ideas.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const pending = brandSparks.filter((s) => !s.used);
@@ -43,7 +54,7 @@ export default function Sparks() {
       <div className="card hero-card">
         <span className="eyebrow">Generador de ideas</span>
         <h2 className="serif-lg">¿No sabes qué publicar?</h2>
-        <p className="muted">Ideas estratégicas, cada una con su tono, su apertura terminada y los niveles de consciencia que activa.</p>
+        <p className="muted">Ideas construidas con la estrategia de tu Biblioteca, la voz de tu marca y el contexto real que aportes.</p>
 
         <span className="eyebrow mt">Tono</span>
         <div className="tone-pick">
@@ -71,8 +82,8 @@ export default function Sparks() {
 
         <label className="label mt" htmlFor="ctx">Contexto para esta tanda (opcional)</label>
         <textarea id="ctx" className="input area" rows={2} value={context} onChange={(e) => setContext(e.target.value)} placeholder="Ej: esta semana varias clientas preguntaron por precios…" />
-        <p className="hint">Una objeción que escuchaste, un resultado reciente, un lanzamiento, algo del sector con lo que no estás de acuerdo.</p>
-        <button className="btn primary" onClick={generate} disabled={busy}><Sparkles size={15} /> {busy ? 'Generando…' : 'Generar chispas'}</button>
+        <p className="hint">Cuanto más específico sea el contexto —una frase de una clienta, una objeción textual o una escena reciente— menos genéricas serán las ideas. Claude no inventa casos ni resultados.</p>
+        <button className="btn primary" onClick={generate} disabled={busy}><Sparkles size={15} /> {busy ? 'Generando con Claude…' : 'Generar chispas'}</button>
       </div>
 
       <div className="card">
